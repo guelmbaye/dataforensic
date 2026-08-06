@@ -1,0 +1,94 @@
+name: dataforensic
+
+services:
+  api:
+    build:
+      context: ./apps/api
+    container_name: dataforensic-api
+    restart: unless-stopped
+    env_file: [.env]
+    depends_on:
+      postgres: {condition: service_healthy}
+      mcp: {condition: service_started}
+    networks: [dataforensic-network, proxy-network]
+    # Pas de ports: publiés — Nginx joint le container par le réseau proxy.
+    # DataHub n'est pas déclaré ici : son quickstart tourne dans son propre
+    # compose et a été rattaché au réseau (section 3.1). Le déclarer en
+    # `depends_on` créerait une dépendance sur des containers que ce fichier ne
+    # gère pas.
+    volumes:
+      # Les chemins correspondent aux ENV figés dans l'image. Les scénarios et
+      # le graphe sont montés en lecture seule : ce sont des données de
+      # référence, l'application n'a aucune raison de les modifier.
+      - ./scenarios:/srv/scenarios:ro
+      - ./datahub/seed:/srv/datahub/seed:ro
+      # La mémoire du provider fixture doit survivre à un redéploiement, sinon
+      # l'organisation « oublie » ce qu'elle a appris à chaque `up -d`.
+      - dataforensic-state:/srv/state
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        # Inliné au build. C'est l'URL publique de l'API : le navigateur
+        # l'appelle directement, y compris pour le flux SSE.
+        NEXT_PUBLIC_API_URL: https://api.dataforensic.vylantic.com/api/v1
+    container_name: dataforensic-web
+    restart: unless-stopped
+    depends_on:
+      api: {condition: service_healthy}
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+    networks: [dataforensic-network, proxy-network]
+
+  mcp:
+    # Le serveur MCP officiel est stdio ; supergateway l'expose en Streamable
+    # HTTP. La variante :uvx embarque déjà uv, donc rien à construire.
+    image: supercorp/supergateway:uvx
+    container_name: dataforensic-mcp
+    restart: unless-stopped
+    environment:
+      DATAHUB_GMS_URL: http://datahub-gms:8080
+      DATAHUB_GMS_TOKEN: ${DATAHUB_TOKEN}
+      TOOLS_IS_MUTATION_ENABLED: "false"
+    command: >-
+      --stdio "uvx mcp-server-datahub@latest"
+      --outputTransport streamableHttp
+      --stateful
+      --streamableHttpPath /mcp
+      --healthEndpoint /healthz
+      --port 8000
+    networks: [dataforensic-network, proxy-network]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dataforensic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dataforensic
+      POSTGRES_USER: dataforensic
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    networks: [dataforensic-network]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dataforensic"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+networks:
+  dataforensic-network:
+    external: true
+  proxy-network:
+    external: true
+
+volumes:
+  postgres-data:
+  dataforensic-state:

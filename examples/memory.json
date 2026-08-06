@@ -1,0 +1,201 @@
+{
+  "id": "241c3642-2d5f-4c41-bc31-c80e859b10d0",
+  "incident_id": "7e645c1b-b343-4a7d-a41f-35c06d38a215",
+  "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+  "datahub_reference": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)#dataforensic-incident-7e645c1b-b343-4a7d-a41f-35c06d38a215",
+  "write_back_status": "VERIFIED",
+  "source_mode": "DEMO_FIXTURE",
+  "pattern": "SCHEMA_DRIFT",
+  "root_cause": "A schema change on erp.public.orders (discount_amount) broke the field mapping feeding ECOMMERCE.ANALYTICS.SALES_DAILY and drove discount_amount out of range.",
+  "confidence": 0.97,
+  "created_at": "2026-08-06T10:35:37.910003Z",
+  "document": {
+    "schema_version": "1.0",
+    "incident_id": "7e645c1b-b343-4a7d-a41f-35c06d38a215",
+    "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+    "title": "Revenue anomaly on sales_daily",
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+    "symptom": "Daily revenue dropped unexpectedly. Find out what happened and determine what is affected.",
+    "pattern": "SCHEMA_DRIFT",
+    "root_cause": "A schema change on erp.public.orders (discount_amount) broke the field mapping feeding ECOMMERCE.ANALYTICS.SALES_DAILY and drove discount_amount out of range.",
+    "confidence": 0.97,
+    "evidence_summary": [
+      {
+        "type": "METRIC_CHANGE",
+        "observation": "revenue_daily_usd on ECOMMERCE.ANALYTICS.SALES_DAILY: 10,100,000 vs baseline 12,400,000 (-18.5%)",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "relevance": "HIGH",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "QUALITY_ANOMALY",
+        "observation": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED: null_rate on discount_amount moved 0.021 -> 0.317 (+1409.5%)",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+        "relevance": "HIGH",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "QUALITY_ANOMALY",
+        "observation": "ECOMMERCE.ANALYTICS.SALES_DAILY: net_revenue_variance on net_revenue moved 0.02 -> 0.185 (+825.0%)",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "relevance": "HIGH",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "SCHEMA_CHANGE",
+        "observation": "erp.public.orders: field renamed: discount_amount -> discount_value",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+        "relevance": "HIGH",
+        "source_system": "DATAHUB"
+      },
+      {
+        "type": "PIPELINE_CHANGE",
+        "observation": "ecommerce_analytics: column mapping for 'discount_amount' is unresolved (expects 'discount_amount', resolved 'None')",
+        "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+        "relevance": "HIGH",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "PIPELINE_CHANGE",
+        "observation": "erp_ingestion: last execution completed successfully at 2026-03-11T10:07:00Z",
+        "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),extract_orders)",
+        "relevance": "MEDIUM",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "PIPELINE_CHANGE",
+        "observation": "ecommerce_analytics: last execution completed successfully at 2026-03-11T10:12:00Z",
+        "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+        "relevance": "MEDIUM",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "PIPELINE_CHANGE",
+        "observation": "ecommerce_analytics: last execution completed successfully at 2026-03-11T10:15:00Z",
+        "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),sales_daily)",
+        "relevance": "MEDIUM",
+        "source_system": "SCENARIO_RUNTIME"
+      },
+      {
+        "type": "LINEAGE_DEPENDENCY",
+        "observation": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED feeds ECOMMERCE.ANALYTICS.SALES_DAILY (1 hop(s)): ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+        "relevance": "HIGH",
+        "source_system": "DATAHUB"
+      },
+      {
+        "type": "LINEAGE_DEPENDENCY",
+        "observation": "erp.public.orders feeds ECOMMERCE.ANALYTICS.SALES_DAILY (4 hop(s)): erp.public.orders -> ecommerce/raw/orders -> ECOMMERCE.RAW.ORDERS_RAW -> ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+        "relevance": "MEDIUM",
+        "source_system": "DATAHUB"
+      },
+      {
+        "type": "OWNERSHIP_SIGNAL",
+        "observation": "ECOMMERCE.ANALYTICS.SALES_DAILY is owned by Analytics Engineering",
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "relevance": "LOW",
+        "source_system": "DATAHUB"
+      }
+    ],
+    "causal_chain": [
+      "Upstream schema change",
+      "Transformation / pipeline impact",
+      "Data quality degradation",
+      "Propagation through lineage",
+      "Business metric impact"
+    ],
+    "hypotheses_considered": [
+      {
+        "pattern": "SCHEMA_DRIFT",
+        "status": "CONFIRMED",
+        "confidence": 0.97,
+        "reasoning": "6 supporting signal(s) (LINEAGE_DEPENDENCY, PIPELINE_CHANGE, QUALITY_ANOMALY, SCHEMA_CHANGE); evidence strength 30.0/30; lineage relevance 25.0/25; temporal correlation 20.0/20; cross-signal agreement 22.0/25."
+      },
+      {
+        "pattern": "SOURCE_DATA_ANOMALY",
+        "status": "REJECTED",
+        "confidence": 0.02,
+        "reasoning": "No independent evidence supports this hypothesis; it only restates the observed symptom."
+      },
+      {
+        "pattern": "PIPELINE_FAILURE",
+        "status": "REJECTED",
+        "confidence": 0.0,
+        "reasoning": "No independent evidence supports this hypothesis; it only restates the observed symptom."
+      },
+      {
+        "pattern": "BUSINESS_SEASONALITY",
+        "status": "REJECTED",
+        "confidence": 0.0,
+        "reasoning": "No independent evidence supports this hypothesis; it only restates the observed symptom."
+      }
+    ],
+    "blast_radius": {
+      "total_affected_assets": 9,
+      "consumers": 7,
+      "owner_count": 3,
+      "risk_level": "CRITICAL",
+      "counts": {
+        "datasets": 4,
+        "dashboards": 3,
+        "charts": 0,
+        "ml_assets": 2,
+        "data_jobs": 0,
+        "consumers_other": 0
+      }
+    },
+    "trust_score": 85.0,
+    "trust_decision": "HIGH_CONFIDENCE",
+    "affected_assets": [
+      "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)",
+      "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)",
+      "urn:li:dashboard:(powerbi,executive_kpi)",
+      "urn:li:dashboard:(tableau,regional_sales)",
+      "urn:li:dashboard:(looker,revenue_overview)",
+      "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+      "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)"
+    ],
+    "owners": [
+      "Analytics Engineering",
+      "Finance Systems",
+      "ML Platform"
+    ],
+    "remediation": [
+      "Restore field mapping",
+      "Replay affected records",
+      "Recompute revenue",
+      "Validate downstream assets",
+      "Notify owners"
+    ],
+    "verification": "PASS",
+    "verification_summary": "7 / 7 checks PASS",
+    "resolved_at": "2026-08-06T10:35:37.905581Z",
+    "created_by": "DATAFORENSIC AI",
+    "source_mode": "DEMO_FIXTURE",
+    "knowledge_pattern": {
+      "pattern": "SCHEMA_DRIFT",
+      "symptoms": [
+        "Revenue anomaly on sales_daily"
+      ],
+      "evidence_signature": [
+        "LINEAGE_DEPENDENCY",
+        "METRIC_CHANGE",
+        "PIPELINE_CHANGE",
+        "QUALITY_ANOMALY",
+        "SCHEMA_CHANGE"
+      ],
+      "resolution": [
+        "Restore field mapping",
+        "Replay affected records",
+        "Recompute revenue",
+        "Validate downstream assets",
+        "Notify owners"
+      ],
+      "confidence": 0.97,
+      "occurrences": 1
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "memory_assisted": false,
+  "matched_pattern": null,
+  "reused_from_investigation_id": null,
+  "remediation_source": "generated",
+  "duration_ms": 135,
+  "tool_call_count": 14
+}

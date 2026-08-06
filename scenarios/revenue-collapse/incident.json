@@ -1,0 +1,10 @@
+{
+  "title": "Revenue anomaly on sales_daily",
+  "description": "Daily revenue dropped unexpectedly. Find out what happened and determine what is affected.",
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+  "severity": "HIGH",
+  "observed_value": "$10.1M",
+  "expected_value": "$12.4M",
+  "detected_at": "2026-03-11T10:20:00Z",
+  "scenario_id": "revenue-collapse"
+}

@@ -1,0 +1,257 @@
+{
+  "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+  "events": [
+    {
+      "seq": 1,
+      "event": "investigation_started",
+      "level": "info",
+      "message": "Investigation started for 'Revenue anomaly on sales_daily'",
+      "created_at": "2026-08-06 10:35:37.782786"
+    },
+    {
+      "seq": 2,
+      "event": "previous_incidents_checked",
+      "level": "info",
+      "message": "No similar past investigation found; running a fresh investigation",
+      "created_at": "2026-08-06 10:35:37.793064"
+    },
+    {
+      "seq": 3,
+      "event": "context_loaded",
+      "level": "info",
+      "message": "Asset context loaded from fixture:showcase-ecommerce-demo.json",
+      "created_at": "2026-08-06 10:35:37.797722"
+    },
+    {
+      "seq": 4,
+      "event": "lineage_loaded",
+      "level": "info",
+      "message": "Lineage traced: 4 upstream / 5 downstream",
+      "created_at": "2026-08-06 10:35:37.800682"
+    },
+    {
+      "seq": 5,
+      "event": "schemas_inspected",
+      "level": "info",
+      "message": "Schemas read for the affected asset and 2 upstream asset(s)",
+      "created_at": "2026-08-06 10:35:37.804894"
+    },
+    {
+      "seq": 6,
+      "event": "changes_inspected",
+      "level": "info",
+      "message": "Change history inspected on 5 asset(s)",
+      "created_at": "2026-08-06 10:35:37.809028"
+    },
+    {
+      "seq": 7,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "revenue_daily_usd on ECOMMERCE.ANALYTICS.SALES_DAILY: 10,100,000 vs baseline 12,400,000 (-18.5%)",
+      "created_at": "2026-08-06 10:35:37.820032"
+    },
+    {
+      "seq": 8,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED: null_rate on discount_amount moved 0.021 -> 0.317 (+1409.5%)",
+      "created_at": "2026-08-06 10:35:37.821971"
+    },
+    {
+      "seq": 9,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ECOMMERCE.ANALYTICS.SALES_DAILY: net_revenue_variance on net_revenue moved 0.02 -> 0.185 (+825.0%)",
+      "created_at": "2026-08-06 10:35:37.823365"
+    },
+    {
+      "seq": 10,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "erp.public.orders: field renamed: discount_amount -> discount_value",
+      "created_at": "2026-08-06 10:35:37.824835"
+    },
+    {
+      "seq": 11,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ecommerce_analytics: column mapping for 'discount_amount' is unresolved (expects 'discount_amount', resolved 'None')",
+      "created_at": "2026-08-06 10:35:37.826377"
+    },
+    {
+      "seq": 12,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "erp_ingestion: last execution completed successfully at 2026-03-11T10:07:00Z",
+      "created_at": "2026-08-06 10:35:37.827995"
+    },
+    {
+      "seq": 13,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ecommerce_analytics: last execution completed successfully at 2026-03-11T10:12:00Z",
+      "created_at": "2026-08-06 10:35:37.829668"
+    },
+    {
+      "seq": 14,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ecommerce_analytics: last execution completed successfully at 2026-03-11T10:15:00Z",
+      "created_at": "2026-08-06 10:35:37.831447"
+    },
+    {
+      "seq": 15,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED feeds ECOMMERCE.ANALYTICS.SALES_DAILY (1 hop(s)): ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "created_at": "2026-08-06 10:35:37.833276"
+    },
+    {
+      "seq": 16,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "erp.public.orders feeds ECOMMERCE.ANALYTICS.SALES_DAILY (4 hop(s)): erp.public.orders -> ecommerce/raw/orders -> ECOMMERCE.RAW.ORDERS_RAW -> ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "created_at": "2026-08-06 10:35:37.834841"
+    },
+    {
+      "seq": 17,
+      "event": "evidence_found",
+      "level": "info",
+      "message": "ECOMMERCE.ANALYTICS.SALES_DAILY is owned by Analytics Engineering",
+      "created_at": "2026-08-06 10:35:37.836238"
+    },
+    {
+      "seq": 18,
+      "event": "evidence_collected",
+      "level": "info",
+      "message": "11 evidence signal(s) collected",
+      "created_at": "2026-08-06 10:35:37.837672"
+    },
+    {
+      "seq": 19,
+      "event": "hypothesis_created",
+      "level": "info",
+      "message": "Hypothesis: An upstream schema change broke a field mapping in the transformation chain, corrupting the downstream values.",
+      "created_at": "2026-08-06 10:35:37.839925"
+    },
+    {
+      "seq": 20,
+      "event": "hypothesis_created",
+      "level": "info",
+      "message": "Hypothesis: A pipeline execution failed or degraded, leaving the target asset incorrect.",
+      "created_at": "2026-08-06 10:35:37.841190"
+    },
+    {
+      "seq": 21,
+      "event": "hypothesis_created",
+      "level": "info",
+      "message": "Hypothesis: The source system delivered anomalous data that propagated downstream.",
+      "created_at": "2026-08-06 10:35:37.842560"
+    },
+    {
+      "seq": 22,
+      "event": "hypothesis_created",
+      "level": "info",
+      "message": "Hypothesis: The variation is a genuine business movement rather than a data defect.",
+      "created_at": "2026-08-06 10:35:37.843921"
+    },
+    {
+      "seq": 23,
+      "event": "hypothesis_scored",
+      "level": "info",
+      "message": "SCHEMA_DRIFT: 97% (CONFIRMED)",
+      "created_at": "2026-08-06 10:35:37.847450"
+    },
+    {
+      "seq": 24,
+      "event": "hypothesis_scored",
+      "level": "info",
+      "message": "SOURCE_DATA_ANOMALY: 2% (REJECTED)",
+      "created_at": "2026-08-06 10:35:37.850008"
+    },
+    {
+      "seq": 25,
+      "event": "hypothesis_scored",
+      "level": "info",
+      "message": "PIPELINE_FAILURE: 0% (REJECTED)",
+      "created_at": "2026-08-06 10:35:37.852786"
+    },
+    {
+      "seq": 26,
+      "event": "hypothesis_scored",
+      "level": "info",
+      "message": "BUSINESS_SEASONALITY: 0% (REJECTED)",
+      "created_at": "2026-08-06 10:35:37.855065"
+    },
+    {
+      "seq": 27,
+      "event": "trust_score_computed",
+      "level": "info",
+      "message": "Trust score 85 / 100 - high confidence",
+      "created_at": "2026-08-06 10:35:37.861989"
+    },
+    {
+      "seq": 28,
+      "event": "root_cause_identified",
+      "level": "info",
+      "message": "SCHEMA_DRIFT: A schema change on erp.public.orders (discount_amount) broke the field mapping feeding ECOMMERCE.ANALYTICS.SALES_DAILY and drove discount_amount out of range.",
+      "created_at": "2026-08-06 10:35:37.863506"
+    },
+    {
+      "seq": 29,
+      "event": "blast_radius_calculated",
+      "level": "info",
+      "message": "9 affected asset(s), 7 consumer(s), 3 owner(s) - risk CRITICAL",
+      "created_at": "2026-08-06 10:35:37.867544"
+    },
+    {
+      "seq": 30,
+      "event": "remediation_planned",
+      "level": "info",
+      "message": "Remediation plan ready (5 steps, risk LOW)",
+      "created_at": "2026-08-06 10:35:37.874728"
+    },
+    {
+      "seq": 31,
+      "event": "remediation_executed",
+      "level": "info",
+      "message": "Remediation executed in the controlled simulation environment",
+      "created_at": "2026-08-06 10:35:37.880241"
+    },
+    {
+      "seq": 32,
+      "event": "verification_started",
+      "level": "info",
+      "message": "Verifying the resolution independently",
+      "created_at": "2026-08-06 10:35:37.882489"
+    },
+    {
+      "seq": 33,
+      "event": "verification_completed",
+      "level": "info",
+      "message": "Verification PASS: 7 / 7 checks PASS",
+      "created_at": "2026-08-06 10:35:37.889447"
+    },
+    {
+      "seq": 34,
+      "event": "incident_resolved",
+      "level": "info",
+      "message": "Incident RESOLVED after successful verification",
+      "created_at": "2026-08-06 10:35:37.892006"
+    },
+    {
+      "seq": 35,
+      "event": "memory_written",
+      "level": "info",
+      "message": "Investigation knowledge written back to DataHub (urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)#dataforensic-incident-7e645c1b-b343-4a7d-a41f-35c06d38a215)",
+      "created_at": "2026-08-06 10:35:37.914544"
+    },
+    {
+      "seq": 36,
+      "event": "investigation_completed",
+      "level": "info",
+      "message": "Investigation completed",
+      "created_at": "2026-08-06 10:35:37.918312"
+    }
+  ]
+}

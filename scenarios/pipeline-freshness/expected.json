@@ -1,0 +1,15 @@
+{
+  "root_cause_pattern": "FRESHNESS_STALENESS",
+  "expected_evidence_types": [
+    "QUALITY_ANOMALY",
+    "PIPELINE_CHANGE"
+  ],
+  "minimum_confidence": 0.7,
+  "minimum_hypotheses": 2,
+  "rejected_patterns": [
+    "SCHEMA_DRIFT"
+  ],
+  "verification": "PASS",
+  "memory_pattern": "FRESHNESS_STALENESS",
+  "note": "Proves the engine is not wired to a single scenario: no schema change exists here."
+}

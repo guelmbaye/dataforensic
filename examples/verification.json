@@ -1,0 +1,112 @@
+{
+  "id": "fe87dce0-6a73-4ed1-952e-1555ecfbaede",
+  "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+  "status": "PASS",
+  "summary": "7 / 7 checks PASS",
+  "passed": 7,
+  "total": 7,
+  "checks": [
+    {
+      "name": "field_mapping_restored",
+      "status": "PASS",
+      "critical": true,
+      "expected": "HEALTHY",
+      "actual": "HEALTHY",
+      "detail": "The transformation resolves the renamed upstream field again.",
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)"
+    },
+    {
+      "name": "null_rate_normalized",
+      "status": "PASS",
+      "critical": true,
+      "expected": "<= 0.05",
+      "actual": 0.02,
+      "detail": "Discount NULL rate is back within its normal range.",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)"
+    },
+    {
+      "name": "revenue_recovery",
+      "status": "PASS",
+      "critical": true,
+      "expected": "12,400,000 (+/-5%)",
+      "actual": "12,300,000",
+      "detail": "Daily revenue is back within 5% of its expected value.",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)"
+    },
+    {
+      "name": "revenue_variance_normalized",
+      "status": "PASS",
+      "critical": true,
+      "expected": "<= 0.05",
+      "actual": 0.008,
+      "detail": "Net revenue variance is back below the alerting threshold.",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)"
+    },
+    {
+      "name": "downstream_assets_healthy",
+      "status": "PASS",
+      "critical": true,
+      "expected": "4 downstream assets healthy",
+      "actual": "4 / 4",
+      "detail": "Every impacted downstream asset passes its checks again.",
+      "asset_urn": null
+    },
+    {
+      "name": "target_asset_context_available",
+      "status": "PASS",
+      "critical": true,
+      "expected": "Asset context readable from DataHub",
+      "actual": "fixture:showcase-ecommerce-demo.json",
+      "detail": "The verification must be able to re-read the asset it claims to have fixed.",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)"
+    },
+    {
+      "name": "datahub_assertions_passing",
+      "status": "PASS",
+      "critical": false,
+      "expected": "0 failing assertions out of 2",
+      "actual": "0 failing",
+      "detail": "DataHub assertion status for the target asset.",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)"
+    }
+  ],
+  "expected_result": {
+    "expected_value": "$12.4M"
+  },
+  "actual_result": {
+    "scenario_state": "REMEDIATED",
+    "metrics": [
+      {
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "name": "revenue_daily_usd",
+        "value": 12300000,
+        "baseline": 12400000,
+        "unit": "USD",
+        "observed_at": "2026-03-11T11:05:00Z"
+      }
+    ],
+    "quality": [
+      {
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+        "check": "null_rate",
+        "value": 0.02,
+        "baseline": 0.021,
+        "status": "PASS",
+        "kind": "CONTENT",
+        "observed_at": "2026-03-11T11:02:00Z",
+        "field": "discount_amount"
+      },
+      {
+        "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "check": "net_revenue_variance",
+        "value": 0.008,
+        "baseline": 0.02,
+        "status": "PASS",
+        "kind": "CONTENT",
+        "observed_at": "2026-03-11T11:05:00Z",
+        "field": "net_revenue"
+      }
+    ]
+  },
+  "verified_at": "2026-08-06 10:35:37.887067"
+}

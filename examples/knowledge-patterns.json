@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "pattern": "SCHEMA_DRIFT",
+      "label": "Schema Drift",
+      "description": "A schema change on erp.public.orders (discount_amount) broke the field mapping feeding ECOMMERCE.ANALYTICS.SALES_DAILY and drove discount_amount out of range.",
+      "occurrences": 1,
+      "verified_resolutions": 1,
+      "first_seen": "2026-08-06T10:35:37.911877",
+      "last_seen": "2026-08-06T10:35:37.911877",
+      "symptoms": [
+        "Revenue anomaly on sales_daily"
+      ],
+      "evidence_signature": [
+        "LINEAGE_DEPENDENCY",
+        "METRIC_CHANGE",
+        "PIPELINE_CHANGE",
+        "QUALITY_ANOMALY",
+        "SCHEMA_CHANGE"
+      ],
+      "resolution_steps": [
+        "Restore field mapping",
+        "Replay affected records",
+        "Recompute revenue",
+        "Validate downstream assets",
+        "Notify owners"
+      ],
+      "affected_asset_urns": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)",
+        "urn:li:dashboard:(powerbi,executive_kpi)",
+        "urn:li:dashboard:(tableau,regional_sales)",
+        "urn:li:dashboard:(looker,revenue_overview)",
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)"
+      ],
+      "average_confidence": 0.97,
+      "average_trust_score": 85.0,
+      "first_investigation_ms": 113,
+      "latest_investigation_ms": 113,
+      "first_investigation_tool_calls": 14,
+      "latest_investigation_tool_calls": 14,
+      "history": [
+        {
+          "incident_id": "7e645c1b-b343-4a7d-a41f-35c06d38a215",
+          "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+          "confidence": 0.97,
+          "trust_score": 85.0,
+          "verified": true,
+          "duration_ms": 113,
+          "tool_calls": 14,
+          "recorded_at": "2026-08-06T10:35:37.911877+00:00"
+        }
+      ]
+    }
+  ],
+  "total": 1
+}

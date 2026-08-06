@@ -1,0 +1,21 @@
+{
+  "root_cause_pattern": "SCHEMA_DRIFT",
+  "expected_evidence_types": [
+    "SCHEMA_CHANGE",
+    "QUALITY_ANOMALY",
+    "LINEAGE_DEPENDENCY",
+    "PIPELINE_CHANGE"
+  ],
+  "minimum_confidence": 0.85,
+  "minimum_hypotheses": 2,
+  "rejected_patterns": [
+    "BUSINESS_SEASONALITY"
+  ],
+  "blast_radius": {
+    "minimum_affected_assets": 5,
+    "minimum_owners": 2
+  },
+  "verification": "PASS",
+  "memory_pattern": "SCHEMA_DRIFT",
+  "note": "Test truth only. This file is never given to the agent."
+}

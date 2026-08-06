@@ -1,0 +1,46 @@
+name: incident-investigation
+version: 0.1.0
+license: Apache-2.0
+summary: >-
+  Turn an affected asset plus an incident signal into structured investigation
+  context: asset metadata, lineage in both directions, ownership, quality
+  signals, recent changes, and a validated write-back document.
+description: >-
+  This skill packages the repetitive, non-opinionated half of a data incident
+  investigation: the part every investigating agent has to do before it can
+  reason at all. It does not decide root causes and holds no scenario specific
+  logic, so it is reusable by any agent working on top of a DataHub context
+  graph.
+
+capabilities:
+  - name: collect_incident_context
+    summary: Gather asset, schema, lineage, ownership and quality context around an affected asset.
+    inputs: [asset_urn, depth, incident_time, lookback_minutes]
+    side_effects: READ
+  - name: trace_incident_lineage
+    summary: Return the upstream paths that can carry a defect into the asset, ordered by distance.
+    inputs: [asset_urn, depth]
+    side_effects: READ
+  - name: find_recent_changes
+    summary: Collect change history on the asset and its nearest upstream assets within a time window.
+    inputs: [asset_urn, incident_time, lookback_minutes, max_upstream]
+    side_effects: READ
+  - name: summarise_downstream_impact
+    summary: Bucket downstream consumers by entity type and aggregate their owners.
+    inputs: [asset_urn, depth]
+    side_effects: READ
+  - name: prepare_incident_writeback
+    summary: Validate and normalise an investigation summary into a write-back document.
+    inputs: [investigation_summary]
+    side_effects: NONE
+  - name: find_similar_incident
+    summary: Search previously written incident memory for a comparable investigation.
+    inputs: [asset_urn, pattern, symptom]
+    side_effects: READ
+
+requires:
+  datahub_client:
+    description: >-
+      Any object exposing get_asset_context, get_schema, get_lineage,
+      get_ownership, get_quality_context, find_changes and (optionally)
+      search_incident_memory. The DataHub MCP server satisfies this contract.

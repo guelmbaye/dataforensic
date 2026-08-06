@@ -1,0 +1,110 @@
+{
+  "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+  "hypotheses": [
+    {
+      "id": "fe69d014-5db3-4ccc-8bc9-5df9aef50231",
+      "pattern": "SCHEMA_DRIFT",
+      "description": "An upstream schema change broke a field mapping in the transformation chain, corrupting the downstream values.",
+      "confidence": 0.97,
+      "status": "CONFIRMED",
+      "reasoning_summary": "6 supporting signal(s) (LINEAGE_DEPENDENCY, PIPELINE_CHANGE, QUALITY_ANOMALY, SCHEMA_CHANGE); evidence strength 30.0/30; lineage relevance 25.0/25; temporal correlation 20.0/20; cross-signal agreement 22.0/25.",
+      "score_breakdown": {
+        "evidence_strength": 30.0,
+        "lineage_relevance": 25.0,
+        "temporal_correlation": 20.0,
+        "cross_signal_agreement": 22.0,
+        "contradicting_evidence": 0,
+        "total": 97.0
+      },
+      "supporting_evidence_ids": [
+        "1b14c933-95d6-4512-a7d7-fc37e8ce038f",
+        "fe929adb-a8c4-4a88-94a7-cf52143c9560",
+        "fbff2957-6b46-461f-b5ca-e1e638b3e237",
+        "f74418fc-0668-4412-b8cb-25b83e195218",
+        "5ee9d1d5-5627-485e-a276-cde04810a729",
+        "9d2b637e-da9d-4b98-8630-a9d6b02a0d0b",
+        "ca863732-28ca-479a-89d0-3dde82537f8e"
+      ],
+      "contradicting_evidence_ids": [],
+      "proposed_by": "deterministic-engine",
+      "is_primary": true
+    },
+    {
+      "id": "8a7aa18b-161f-48d3-9a13-5a0bb4b6095b",
+      "pattern": "SOURCE_DATA_ANOMALY",
+      "description": "The source system delivered anomalous data that propagated downstream.",
+      "confidence": 0.02,
+      "status": "REJECTED",
+      "reasoning_summary": "No independent evidence supports this hypothesis; it only restates the observed symptom.",
+      "score_breakdown": {
+        "evidence_strength": 10.0,
+        "lineage_relevance": 0.0,
+        "temporal_correlation": 0.0,
+        "cross_signal_agreement": 0.0,
+        "contradicting_evidence": -8.0,
+        "total": 2.0
+      },
+      "supporting_evidence_ids": [
+        "1b14c933-95d6-4512-a7d7-fc37e8ce038f"
+      ],
+      "contradicting_evidence_ids": [
+        "f74418fc-0668-4412-b8cb-25b83e195218"
+      ],
+      "proposed_by": "deterministic-engine",
+      "is_primary": false
+    },
+    {
+      "id": "0ba6019c-0314-4261-af57-6510215ec1e6",
+      "pattern": "PIPELINE_FAILURE",
+      "description": "A pipeline execution failed or degraded, leaving the target asset incorrect.",
+      "confidence": 0.0,
+      "status": "REJECTED",
+      "reasoning_summary": "No independent evidence supports this hypothesis; it only restates the observed symptom.",
+      "score_breakdown": {
+        "evidence_strength": 10.0,
+        "lineage_relevance": 0.0,
+        "temporal_correlation": 0.0,
+        "cross_signal_agreement": 0.0,
+        "contradicting_evidence": -12.0,
+        "total": 0.0
+      },
+      "supporting_evidence_ids": [
+        "1b14c933-95d6-4512-a7d7-fc37e8ce038f"
+      ],
+      "contradicting_evidence_ids": [
+        "6ff05371-f54c-42b6-8f6d-6b6b26f3e961",
+        "ae958644-b4b1-46c0-a578-a255092e5f5e",
+        "3895e99c-717a-4fc3-994e-f20169206a24"
+      ],
+      "proposed_by": "deterministic-engine",
+      "is_primary": false
+    },
+    {
+      "id": "04db05d3-63f1-475e-8472-5f3821b86b49",
+      "pattern": "BUSINESS_SEASONALITY",
+      "description": "The variation is a genuine business movement rather than a data defect.",
+      "confidence": 0.0,
+      "status": "REJECTED",
+      "reasoning_summary": "No independent evidence supports this hypothesis; it only restates the observed symptom.",
+      "score_breakdown": {
+        "evidence_strength": 10.0,
+        "lineage_relevance": 0.0,
+        "temporal_correlation": 0.0,
+        "cross_signal_agreement": 0.0,
+        "contradicting_evidence": -32.0,
+        "total": 0.0
+      },
+      "supporting_evidence_ids": [
+        "1b14c933-95d6-4512-a7d7-fc37e8ce038f"
+      ],
+      "contradicting_evidence_ids": [
+        "fe929adb-a8c4-4a88-94a7-cf52143c9560",
+        "fbff2957-6b46-461f-b5ca-e1e638b3e237",
+        "f74418fc-0668-4412-b8cb-25b83e195218",
+        "5ee9d1d5-5627-485e-a276-cde04810a729"
+      ],
+      "proposed_by": "deterministic-engine",
+      "is_primary": false
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+# Generated: keep it out of diffs and out of language statistics.
+apps/web/package-lock.json linguist-generated=true
+datahub/seed/showcase-ecommerce-demo.json linguist-generated=true

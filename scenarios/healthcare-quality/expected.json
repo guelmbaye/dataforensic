@@ -1,0 +1,15 @@
+{
+  "root_cause_pattern": "SOURCE_DATA_ANOMALY",
+  "expected_evidence_types": [
+    "QUALITY_ANOMALY",
+    "LINEAGE_DEPENDENCY"
+  ],
+  "minimum_confidence": 0.7,
+  "minimum_hypotheses": 2,
+  "rejected_patterns": [
+    "SCHEMA_DRIFT"
+  ],
+  "verification": "PASS",
+  "memory_pattern": "SOURCE_DATA_ANOMALY",
+  "note": "No schema change and a healthy mapping: SCHEMA_DRIFT must not win here."
+}

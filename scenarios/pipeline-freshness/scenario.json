@@ -1,0 +1,226 @@
+{
+  "id": "pipeline-freshness",
+  "title": "Stale taxi trip data",
+  "datapack": "nyc-taxi",
+  "target_asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+  "corruption_entry_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+  "incident_time": "2026-03-11T08:30:00Z",
+  "initial_state": "BROKEN",
+  "description": "A staging stage stopped refreshing, so the daily aggregate serves yesterday's data.",
+  "timeline": [
+    {
+      "timestamp": "2026-03-11T06:10:00Z",
+      "label": "clean_trips stage misses its scheduled run"
+    },
+    {
+      "timestamp": "2026-03-11T07:00:00Z",
+      "label": "trips_daily runs on stale staging data"
+    },
+    {
+      "timestamp": "2026-03-11T08:30:00Z",
+      "label": "Operations reports a stale dashboard"
+    }
+  ],
+  "states": {
+    "BROKEN": {
+      "metrics": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+          "name": "rows_loaded_today",
+          "value": 0,
+          "baseline": 145000,
+          "unit": "rows",
+          "observed_at": "2026-03-11T08:25:00Z"
+        }
+      ],
+      "quality": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+          "check": "freshness_hours",
+          "value": 26.0,
+          "baseline": 6.0,
+          "status": "FAIL",
+          "kind": "FRESHNESS",
+          "observed_at": "2026-03-11T08:25:00Z"
+        },
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+          "check": "freshness_hours",
+          "value": 25.0,
+          "baseline": 6.0,
+          "status": "FAIL",
+          "kind": "FRESHNESS",
+          "observed_at": "2026-03-11T08:20:00Z"
+        }
+      ],
+      "mappings": [],
+      "pipeline_runs": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,nyc_taxi,PROD),ingest_trips)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:s3,nyc-taxi/raw/trips,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T05:40:00Z",
+          "lag_minutes": 10,
+          "sla_minutes": 120
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,nyc_taxi,PROD),clean_trips)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T06:10:00Z",
+          "lag_minutes": 1500,
+          "sla_minutes": 240
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,nyc_taxi,PROD),trips_daily)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T07:00:00Z",
+          "lag_minutes": 20,
+          "sla_minutes": 240
+        }
+      ],
+      "downstream_checks": {
+        "urn:li:dashboard:(looker,taxi_operations)": false
+      }
+    },
+    "REMEDIATED": {
+      "metrics": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+          "name": "rows_loaded_today",
+          "value": 143800,
+          "baseline": 145000,
+          "unit": "rows",
+          "observed_at": "2026-03-11T09:20:00Z"
+        }
+      ],
+      "quality": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+          "check": "freshness_hours",
+          "value": 0.4,
+          "baseline": 6.0,
+          "status": "PASS",
+          "kind": "FRESHNESS",
+          "observed_at": "2026-03-11T09:20:00Z"
+        },
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+          "check": "freshness_hours",
+          "value": 0.8,
+          "baseline": 6.0,
+          "status": "PASS",
+          "kind": "FRESHNESS",
+          "observed_at": "2026-03-11T09:10:00Z"
+        }
+      ],
+      "mappings": [],
+      "pipeline_runs": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,nyc_taxi,PROD),ingest_trips)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:s3,nyc-taxi/raw/trips,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T05:40:00Z",
+          "lag_minutes": 10,
+          "sla_minutes": 120
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,nyc_taxi,PROD),clean_trips)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T09:10:00Z",
+          "lag_minutes": 30,
+          "sla_minutes": 240
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,nyc_taxi,PROD),trips_daily)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T09:20:00Z",
+          "lag_minutes": 15,
+          "sla_minutes": 240
+        }
+      ],
+      "downstream_checks": {
+        "urn:li:dashboard:(looker,taxi_operations)": true
+      }
+    }
+  },
+  "remediation": {
+    "applies_to_patterns": [
+      "FRESHNESS_STALENESS",
+      "PIPELINE_FAILURE"
+    ],
+    "diagnosis": "The staging stage feeding {asset} stopped refreshing, so downstream consumers read stale partitions.",
+    "expected_result": "Freshness returns within the SLA for the whole chain.",
+    "rollback": "Not applicable: the fix only refreshes data, nothing is modified.",
+    "steps": [
+      {
+        "id": "identify_stale_stage",
+        "title": "Identify the stale stage",
+        "description": "Locate the first stage of the chain whose freshness left its SLA.",
+        "risk": "LOW"
+      },
+      {
+        "id": "trigger_refresh",
+        "title": "Trigger a refresh of the stale stage",
+        "description": "Re-run the staging stage for the missing window.",
+        "risk": "LOW",
+        "effect": "REMEDIATED"
+      },
+      {
+        "id": "propagate_refresh",
+        "title": "Propagate downstream",
+        "description": "Refresh the downstream aggregate in lineage order.",
+        "risk": "LOW"
+      },
+      {
+        "id": "notify_owners",
+        "title": "Notify owners",
+        "description": "Inform the owning team that the chain was stale.",
+        "risk": "LOW"
+      }
+    ]
+  },
+  "remediation_effects": {
+    "trigger_refresh": "REMEDIATED"
+  },
+  "verification_checks": [
+    {
+      "name": "target_freshness_restored",
+      "type": "QUALITY",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+      "check": "freshness_hours",
+      "max": 6.0,
+      "critical": true,
+      "description": "The daily aggregate is fresh again."
+    },
+    {
+      "name": "staging_freshness_restored",
+      "type": "QUALITY",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+      "check": "freshness_hours",
+      "max": 6.0,
+      "critical": true,
+      "description": "The staging stage is fresh again."
+    },
+    {
+      "name": "rows_loaded_recovered",
+      "type": "METRIC",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+      "metric": "rows_loaded_today",
+      "expected": 145000,
+      "tolerance": 0.1,
+      "critical": true,
+      "description": "The expected volume of rows was loaded."
+    },
+    {
+      "name": "downstream_assets_healthy",
+      "type": "DOWNSTREAM",
+      "expected_count": 1,
+      "critical": false,
+      "description": "The operations dashboard reads fresh data again."
+    }
+  ]
+}

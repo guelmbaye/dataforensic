@@ -1,0 +1,1034 @@
+{
+  "name": "showcase-ecommerce-demo",
+  "description": "Deterministic DataHub context graph used by DATAFORENSIC AI when no live DataHub is reachable. Mirrors the structure of the official showcase-ecommerce, nyc-taxi and healthcare datapacks.",
+  "generated_for": "DATAFORENSIC AI",
+  "platforms": [
+    "postgres",
+    "s3",
+    "snowflake",
+    "dbt",
+    "spark",
+    "looker",
+    "powerbi",
+    "tableau",
+    "mlflow"
+  ],
+  "entities": [
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+      "type": "DATASET",
+      "name": "erp.public.orders",
+      "platform": "postgres",
+      "env": "PROD",
+      "description": "Operational order table replicated from the ERP system.",
+      "domain": "Finance",
+      "tags": [
+        "Tier1",
+        "Source"
+      ],
+      "glossary_terms": [
+        "Revenue"
+      ],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:erp-platform",
+          "name": "ERP Platform",
+          "type": "DATAOWNER",
+          "email": "erp-platform@example.com"
+        }
+      ],
+      "criticality": "HIGH",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "order_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Order identifier"
+          },
+          {
+            "path": "customer_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Customer identifier"
+          },
+          {
+            "path": "order_ts",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Order creation timestamp"
+          },
+          {
+            "path": "gross_amount",
+            "type": "numeric",
+            "nullable": false,
+            "description": "Gross order amount"
+          },
+          {
+            "path": "discount_value",
+            "type": "numeric",
+            "nullable": true,
+            "description": "Discount applied (renamed from discount_amount)"
+          },
+          {
+            "path": "currency",
+            "type": "varchar",
+            "nullable": false,
+            "description": "ISO currency code"
+          },
+          {
+            "path": "status",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Order status"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:s3,ecommerce/raw/orders,PROD)",
+      "type": "DATASET",
+      "name": "ecommerce/raw/orders",
+      "platform": "s3",
+      "env": "PROD",
+      "description": "Raw landing zone for ERP order extracts.",
+      "domain": "Finance",
+      "tags": [
+        "Raw"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:data-platform",
+          "name": "Data Platform",
+          "type": "TECHNICAL_OWNER",
+          "email": "data-platform@example.com"
+        }
+      ],
+      "criticality": "MEDIUM",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "payload",
+            "type": "string",
+            "nullable": false,
+            "description": "Raw JSON payload"
+          },
+          {
+            "path": "ingested_at",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Ingestion timestamp"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.RAW.ORDERS_RAW,PROD)",
+      "type": "DATASET",
+      "name": "ECOMMERCE.RAW.ORDERS_RAW",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Raw order records loaded into the warehouse.",
+      "domain": "Finance",
+      "tags": [
+        "Raw"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:data-platform",
+          "name": "Data Platform",
+          "type": "TECHNICAL_OWNER",
+          "email": "data-platform@example.com"
+        }
+      ],
+      "criticality": "MEDIUM",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "order_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Order identifier"
+          },
+          {
+            "path": "customer_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Customer identifier"
+          },
+          {
+            "path": "order_ts",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Order creation timestamp"
+          },
+          {
+            "path": "gross_amount",
+            "type": "number",
+            "nullable": false,
+            "description": "Gross order amount"
+          },
+          {
+            "path": "discount_value",
+            "type": "number",
+            "nullable": true,
+            "description": "Discount value from source"
+          },
+          {
+            "path": "currency",
+            "type": "varchar",
+            "nullable": false,
+            "description": "ISO currency code"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "type": "DATASET",
+      "name": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Enriched orders with net amounts, used by every revenue model.",
+      "domain": "Finance",
+      "tags": [
+        "Tier1",
+        "Certified"
+      ],
+      "glossary_terms": [
+        "Revenue",
+        "Net Revenue"
+      ],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:data-platform",
+          "name": "Data Platform",
+          "type": "TECHNICAL_OWNER",
+          "email": "data-platform@example.com"
+        },
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ],
+      "criticality": "HIGH",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "order_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Order identifier"
+          },
+          {
+            "path": "customer_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Customer identifier"
+          },
+          {
+            "path": "order_ts",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Order creation timestamp"
+          },
+          {
+            "path": "gross_amount",
+            "type": "number",
+            "nullable": false,
+            "description": "Gross order amount"
+          },
+          {
+            "path": "discount_amount",
+            "type": "number",
+            "nullable": true,
+            "description": "Discount mapped from the source system"
+          },
+          {
+            "path": "net_amount",
+            "type": "number",
+            "nullable": true,
+            "description": "gross_amount - discount_amount"
+          },
+          {
+            "path": "region",
+            "type": "varchar",
+            "nullable": true,
+            "description": "Customer region"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "type": "DATASET",
+      "name": "ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Daily sales aggregate powering the revenue metric.",
+      "domain": "Finance",
+      "tags": [
+        "Tier1",
+        "Certified",
+        "Finance"
+      ],
+      "glossary_terms": [
+        "Revenue"
+      ],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ],
+      "criticality": "CRITICAL",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "sales_date",
+            "type": "date",
+            "nullable": false,
+            "description": "Aggregation date"
+          },
+          {
+            "path": "orders_count",
+            "type": "number",
+            "nullable": false,
+            "description": "Number of orders"
+          },
+          {
+            "path": "gross_revenue",
+            "type": "number",
+            "nullable": false,
+            "description": "Gross revenue"
+          },
+          {
+            "path": "net_revenue",
+            "type": "number",
+            "nullable": false,
+            "description": "Net revenue after discounts"
+          },
+          {
+            "path": "region",
+            "type": "varchar",
+            "nullable": true,
+            "description": "Region"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)",
+      "type": "DATASET",
+      "name": "ECOMMERCE.ANALYTICS.REVENUE_BY_REGION",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Revenue split by region.",
+      "domain": "Finance",
+      "tags": [
+        "Certified"
+      ],
+      "glossary_terms": [
+        "Revenue"
+      ],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ],
+      "criticality": "HIGH",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "region",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Region"
+          },
+          {
+            "path": "sales_date",
+            "type": "date",
+            "nullable": false,
+            "description": "Date"
+          },
+          {
+            "path": "net_revenue",
+            "type": "number",
+            "nullable": false,
+            "description": "Net revenue"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)",
+      "type": "DATASET",
+      "name": "ECOMMERCE.FINANCE.MONTHLY_CLOSE",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Monthly financial close input.",
+      "domain": "Finance",
+      "tags": [
+        "Tier1",
+        "SOX",
+        "Finance"
+      ],
+      "glossary_terms": [
+        "Revenue"
+      ],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:finance-systems",
+          "name": "Finance Systems",
+          "type": "BUSINESS_OWNER",
+          "email": "finance-systems@example.com"
+        }
+      ],
+      "criticality": "CRITICAL",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "period",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Accounting period"
+          },
+          {
+            "path": "net_revenue",
+            "type": "number",
+            "nullable": false,
+            "description": "Net revenue"
+          },
+          {
+            "path": "discounts",
+            "type": "number",
+            "nullable": true,
+            "description": "Total discounts"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "type": "DATASET",
+      "name": "ECOMMERCE.ML.CUSTOMER_FEATURES",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Customer level feature table used by ML models.",
+      "domain": "Machine Learning",
+      "tags": [
+        "Feature"
+      ],
+      "glossary_terms": [
+        "Net Revenue"
+      ],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:ml-platform",
+          "name": "ML Platform",
+          "type": "DATAOWNER",
+          "email": "ml-platform@example.com"
+        }
+      ],
+      "criticality": "HIGH",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "customer_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Customer identifier"
+          },
+          {
+            "path": "lifetime_net_value",
+            "type": "number",
+            "nullable": true,
+            "description": "Lifetime net value"
+          },
+          {
+            "path": "avg_discount_rate",
+            "type": "number",
+            "nullable": true,
+            "description": "Average discount rate"
+          },
+          {
+            "path": "orders_90d",
+            "type": "number",
+            "nullable": true,
+            "description": "Orders in the last 90 days"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dashboard:(looker,revenue_overview)",
+      "type": "DASHBOARD",
+      "name": "Revenue Overview",
+      "platform": "looker",
+      "env": "PROD",
+      "description": "Daily revenue dashboard.",
+      "domain": "Finance",
+      "tags": [
+        "Tier1",
+        "Executive"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ],
+      "criticality": "HIGH"
+    },
+    {
+      "urn": "urn:li:dashboard:(powerbi,executive_kpi)",
+      "type": "DASHBOARD",
+      "name": "Executive KPI",
+      "platform": "powerbi",
+      "env": "PROD",
+      "description": "Executive KPI board.",
+      "domain": "Finance",
+      "tags": [
+        "Tier1",
+        "Executive"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ],
+      "criticality": "CRITICAL"
+    },
+    {
+      "urn": "urn:li:dashboard:(tableau,regional_sales)",
+      "type": "DASHBOARD",
+      "name": "Regional Sales",
+      "platform": "tableau",
+      "env": "PROD",
+      "description": "Regional sales dashboard.",
+      "domain": "Sales",
+      "tags": [
+        "Certified"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ],
+      "criticality": "MEDIUM"
+    },
+    {
+      "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+      "type": "MLMODEL",
+      "name": "churn_propensity",
+      "platform": "mlflow",
+      "env": "PROD",
+      "description": "Churn propensity model.",
+      "domain": "Machine Learning",
+      "tags": [
+        "Tier1"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:ml-platform",
+          "name": "ML Platform",
+          "type": "DATAOWNER",
+          "email": "ml-platform@example.com"
+        }
+      ],
+      "criticality": "HIGH"
+    },
+    {
+      "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)",
+      "type": "MLMODEL",
+      "name": "demand_forecast",
+      "platform": "mlflow",
+      "env": "PROD",
+      "description": "Demand forecasting model.",
+      "domain": "Machine Learning",
+      "tags": [
+        "Certified"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:ml-platform",
+          "name": "ML Platform",
+          "type": "DATAOWNER",
+          "email": "ml-platform@example.com"
+        }
+      ],
+      "criticality": "HIGH"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:s3,nyc-taxi/raw/trips,PROD)",
+      "type": "DATASET",
+      "name": "nyc-taxi/raw/trips",
+      "platform": "s3",
+      "env": "PROD",
+      "description": "Raw taxi trip files.",
+      "domain": "Mobility",
+      "tags": [
+        "Raw"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:mobility-data",
+          "name": "Mobility Data",
+          "type": "DATAOWNER",
+          "email": "mobility-data@example.com"
+        }
+      ],
+      "criticality": "MEDIUM",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "trip_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Trip id"
+          },
+          {
+            "path": "pickup_ts",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Pickup"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+      "type": "DATASET",
+      "name": "NYC_TAXI.STAGING.TRIPS_CLEAN",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Cleaned taxi trips.",
+      "domain": "Mobility",
+      "tags": [
+        "Staging"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:mobility-data",
+          "name": "Mobility Data",
+          "type": "DATAOWNER",
+          "email": "mobility-data@example.com"
+        }
+      ],
+      "criticality": "MEDIUM",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "trip_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Trip id"
+          },
+          {
+            "path": "pickup_ts",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Pickup"
+          },
+          {
+            "path": "fare_amount",
+            "type": "number",
+            "nullable": true,
+            "description": "Fare"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+      "type": "DATASET",
+      "name": "NYC_TAXI.ANALYTICS.TRIPS_DAILY",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Daily taxi trip aggregate.",
+      "domain": "Mobility",
+      "tags": [
+        "Tier1",
+        "Certified"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:mobility-data",
+          "name": "Mobility Data",
+          "type": "DATAOWNER",
+          "email": "mobility-data@example.com"
+        }
+      ],
+      "criticality": "HIGH",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "trip_date",
+            "type": "date",
+            "nullable": false,
+            "description": "Date"
+          },
+          {
+            "path": "trips",
+            "type": "number",
+            "nullable": false,
+            "description": "Trip count"
+          },
+          {
+            "path": "revenue",
+            "type": "number",
+            "nullable": true,
+            "description": "Fare revenue"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dashboard:(looker,taxi_operations)",
+      "type": "DASHBOARD",
+      "name": "Taxi Operations",
+      "platform": "looker",
+      "env": "PROD",
+      "description": "Operations dashboard.",
+      "domain": "Mobility",
+      "tags": [
+        "Tier1"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:mobility-data",
+          "name": "Mobility Data",
+          "type": "DATAOWNER",
+          "email": "mobility-data@example.com"
+        }
+      ],
+      "criticality": "HIGH"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,healthcare.public.patient_admissions,PROD)",
+      "type": "DATASET",
+      "name": "healthcare.public.patient_admissions",
+      "platform": "postgres",
+      "env": "PROD",
+      "description": "Patient admission records from the hospital information system.",
+      "domain": "Healthcare",
+      "tags": [
+        "Tier1",
+        "PII",
+        "Source"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:clinical-data",
+          "name": "Clinical Data",
+          "type": "DATAOWNER",
+          "email": "clinical-data@example.com"
+        }
+      ],
+      "criticality": "HIGH",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "admission_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Admission id"
+          },
+          {
+            "path": "patient_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Patient id"
+          },
+          {
+            "path": "admitted_at",
+            "type": "timestamp",
+            "nullable": false,
+            "description": "Admission timestamp"
+          },
+          {
+            "path": "diagnosis_code",
+            "type": "varchar",
+            "nullable": true,
+            "description": "ICD-10 diagnosis code"
+          },
+          {
+            "path": "discharge_at",
+            "type": "timestamp",
+            "nullable": true,
+            "description": "Discharge timestamp"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+      "type": "DATASET",
+      "name": "HEALTHCARE.ANALYTICS.PATIENT_360",
+      "platform": "snowflake",
+      "env": "PROD",
+      "description": "Consolidated patient view used by clinical operations.",
+      "domain": "Healthcare",
+      "tags": [
+        "Tier1",
+        "PII",
+        "Certified"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:clinical-data",
+          "name": "Clinical Data",
+          "type": "DATAOWNER",
+          "email": "clinical-data@example.com"
+        }
+      ],
+      "criticality": "CRITICAL",
+      "schema": {
+        "version": 1,
+        "fields": [
+          {
+            "path": "patient_id",
+            "type": "varchar",
+            "nullable": false,
+            "description": "Patient id"
+          },
+          {
+            "path": "last_admission_at",
+            "type": "timestamp",
+            "nullable": true,
+            "description": "Last admission"
+          },
+          {
+            "path": "primary_diagnosis",
+            "type": "varchar",
+            "nullable": true,
+            "description": "Primary diagnosis"
+          },
+          {
+            "path": "readmission_risk",
+            "type": "number",
+            "nullable": true,
+            "description": "Readmission risk score"
+          }
+        ]
+      }
+    },
+    {
+      "urn": "urn:li:dashboard:(tableau,care_operations)",
+      "type": "DASHBOARD",
+      "name": "Care Operations",
+      "platform": "tableau",
+      "env": "PROD",
+      "description": "Clinical operations dashboard.",
+      "domain": "Healthcare",
+      "tags": [
+        "Tier1",
+        "PII"
+      ],
+      "glossary_terms": [],
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:clinical-data",
+          "name": "Clinical Data",
+          "type": "DATAOWNER",
+          "email": "clinical-data@example.com"
+        }
+      ],
+      "criticality": "HIGH"
+    }
+  ],
+  "lineage": [
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:s3,ecommerce/raw/orders,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),extract_orders)",
+      "type": "COPY"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:s3,ecommerce/raw/orders,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.RAW.ORDERS_RAW,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),load_orders_raw)",
+      "type": "COPY"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.RAW.ORDERS_RAW,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),sales_daily)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(spark,ml_features,PROD),customer_features)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),revenue_by_region)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),revenue_by_region)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "downstream": "urn:li:dashboard:(looker,revenue_overview)",
+      "via": null,
+      "type": "CONSUMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "downstream": "urn:li:dashboard:(powerbi,executive_kpi)",
+      "via": null,
+      "type": "CONSUMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "downstream": "urn:li:dashboard:(tableau,regional_sales)",
+      "via": null,
+      "type": "CONSUMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "downstream": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+      "via": null,
+      "type": "CONSUMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "downstream": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)",
+      "via": null,
+      "type": "CONSUMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:s3,nyc-taxi/raw/trips,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(spark,nyc_taxi,PROD),clean_trips)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.STAGING.TRIPS_CLEAN,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(dbt,nyc_taxi,PROD),trips_daily)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+      "downstream": "urn:li:dashboard:(looker,taxi_operations)",
+      "via": null,
+      "type": "CONSUMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:postgres,healthcare.public.patient_admissions,PROD)",
+      "downstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+      "via": "urn:li:dataJob:(urn:li:dataFlow:(dbt,healthcare,PROD),patient_360)",
+      "type": "TRANSFORMED"
+    },
+    {
+      "upstream": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+      "downstream": "urn:li:dashboard:(tableau,care_operations)",
+      "via": null,
+      "type": "CONSUMED"
+    }
+  ],
+  "changes": [
+    {
+      "timestamp": "2026-03-11T10:02:00Z",
+      "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+      "type": "SCHEMA_CHANGE",
+      "operation": "MODIFY",
+      "summary": "field renamed: discount_amount -> discount_value",
+      "details": {
+        "field": "discount_amount",
+        "from_field": "discount_amount",
+        "to_field": "discount_value",
+        "semantic_version": "2.0.0",
+        "backward_incompatible": true
+      }
+    },
+    {
+      "timestamp": "2026-03-11T09:40:00Z",
+      "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "type": "DOCUMENTATION",
+      "operation": "MODIFY",
+      "summary": "documentation updated by analytics-engineering",
+      "details": {}
+    }
+  ],
+  "assertions": [
+    {
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "name": "sales_daily_freshness",
+      "type": "FRESHNESS",
+      "status": "PASS",
+      "observed_at": "2026-03-11T10:15:00Z",
+      "detail": "Refreshed within the 60 minute SLA"
+    },
+    {
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "name": "sales_daily_row_count",
+      "type": "VOLUME",
+      "status": "PASS",
+      "observed_at": "2026-03-11T10:15:00Z",
+      "detail": "Row count within the expected range"
+    },
+    {
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "name": "orders_enriched_freshness",
+      "type": "FRESHNESS",
+      "status": "PASS",
+      "observed_at": "2026-03-11T10:12:00Z",
+      "detail": "Refreshed within the 60 minute SLA"
+    }
+  ]
+}

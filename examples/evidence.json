@@ -1,0 +1,229 @@
+{
+  "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+  "evidence": [
+    {
+      "id": "1b14c933-95d6-4512-a7d7-fc37e8ce038f",
+      "type": "METRIC_CHANGE",
+      "source": "scenario-runtime:revenue-collapse:metrics",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "field_path": null,
+      "observation": "revenue_daily_usd on ECOMMERCE.ANALYTICS.SALES_DAILY: 10,100,000 vs baseline 12,400,000 (-18.5%)",
+      "relevance": "HIGH",
+      "observed_at": "2026-03-11 10:18:00",
+      "lineage_distance": 0,
+      "metadata": {
+        "metric": "revenue_daily_usd",
+        "value": 10100000,
+        "baseline": 12400000,
+        "unit": "USD",
+        "deviation": 0.1855,
+        "change": -0.1855
+      }
+    },
+    {
+      "id": "fe929adb-a8c4-4a88-94a7-cf52143c9560",
+      "type": "QUALITY_ANOMALY",
+      "source": "scenario-runtime:revenue-collapse:quality",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "field_path": "discount_amount",
+      "observation": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED: null_rate on discount_amount moved 0.021 -> 0.317 (+1409.5%)",
+      "relevance": "HIGH",
+      "observed_at": "2026-03-11 10:12:00",
+      "lineage_distance": 1,
+      "metadata": {
+        "check": "null_rate",
+        "value": 0.317,
+        "baseline": 0.021,
+        "status": "FAIL",
+        "kind": "CONTENT"
+      }
+    },
+    {
+      "id": "fbff2957-6b46-461f-b5ca-e1e638b3e237",
+      "type": "QUALITY_ANOMALY",
+      "source": "scenario-runtime:revenue-collapse:quality",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "field_path": "net_revenue",
+      "observation": "ECOMMERCE.ANALYTICS.SALES_DAILY: net_revenue_variance on net_revenue moved 0.02 -> 0.185 (+825.0%)",
+      "relevance": "HIGH",
+      "observed_at": "2026-03-11 10:18:00",
+      "lineage_distance": 0,
+      "metadata": {
+        "check": "net_revenue_variance",
+        "value": 0.185,
+        "baseline": 0.02,
+        "status": "FAIL",
+        "kind": "CONTENT"
+      }
+    },
+    {
+      "id": "f74418fc-0668-4412-b8cb-25b83e195218",
+      "type": "SCHEMA_CHANGE",
+      "source": "datahub:timeline",
+      "source_system": "DATAHUB",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+      "field_path": "discount_amount",
+      "observation": "erp.public.orders: field renamed: discount_amount -> discount_value",
+      "relevance": "HIGH",
+      "observed_at": "2026-03-11 10:02:00",
+      "lineage_distance": 4,
+      "metadata": {
+        "operation": "MODIFY",
+        "precedes_incident": true,
+        "on_path_to_target": true,
+        "field": "discount_amount",
+        "from_field": "discount_amount",
+        "to_field": "discount_value",
+        "semantic_version": "2.0.0",
+        "backward_incompatible": true
+      }
+    },
+    {
+      "id": "5ee9d1d5-5627-485e-a276-cde04810a729",
+      "type": "PIPELINE_CHANGE",
+      "source": "scenario-runtime:revenue-collapse:mappings",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+      "field_path": "discount_amount",
+      "observation": "ecommerce_analytics: column mapping for 'discount_amount' is unresolved (expects 'discount_amount', resolved 'None')",
+      "relevance": "HIGH",
+      "observed_at": "2026-03-11 10:07:00",
+      "lineage_distance": 1,
+      "metadata": {
+        "mapping_unresolved": true,
+        "expected_source_field": "discount_amount",
+        "resolved_source_field": null,
+        "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+        "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)"
+      }
+    },
+    {
+      "id": "6ff05371-f54c-42b6-8f6d-6b6b26f3e961",
+      "type": "PIPELINE_CHANGE",
+      "source": "scenario-runtime:revenue-collapse:pipeline_runs",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),extract_orders)",
+      "field_path": null,
+      "observation": "erp_ingestion: last execution completed successfully at 2026-03-11T10:07:00Z",
+      "relevance": "MEDIUM",
+      "observed_at": "2026-03-11 10:07:00",
+      "lineage_distance": 2,
+      "metadata": {
+        "status": "SUCCESS",
+        "failed": false,
+        "late": false,
+        "lag_minutes": 5.0,
+        "sla_minutes": 60.0,
+        "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),extract_orders)"
+      }
+    },
+    {
+      "id": "ae958644-b4b1-46c0-a578-a255092e5f5e",
+      "type": "PIPELINE_CHANGE",
+      "source": "scenario-runtime:revenue-collapse:pipeline_runs",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+      "field_path": null,
+      "observation": "ecommerce_analytics: last execution completed successfully at 2026-03-11T10:12:00Z",
+      "relevance": "MEDIUM",
+      "observed_at": "2026-03-11 10:12:00",
+      "lineage_distance": 1,
+      "metadata": {
+        "status": "SUCCESS",
+        "failed": false,
+        "late": false,
+        "lag_minutes": 4.0,
+        "sla_minutes": 60.0,
+        "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)"
+      }
+    },
+    {
+      "id": "3895e99c-717a-4fc3-994e-f20169206a24",
+      "type": "PIPELINE_CHANGE",
+      "source": "scenario-runtime:revenue-collapse:pipeline_runs",
+      "source_system": "SCENARIO_RUNTIME",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),sales_daily)",
+      "field_path": null,
+      "observation": "ecommerce_analytics: last execution completed successfully at 2026-03-11T10:15:00Z",
+      "relevance": "MEDIUM",
+      "observed_at": "2026-03-11 10:15:00",
+      "lineage_distance": 0,
+      "metadata": {
+        "status": "SUCCESS",
+        "failed": false,
+        "late": false,
+        "lag_minutes": 3.0,
+        "sla_minutes": 60.0,
+        "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),sales_daily)"
+      }
+    },
+    {
+      "id": "9d2b637e-da9d-4b98-8630-a9d6b02a0d0b",
+      "type": "LINEAGE_DEPENDENCY",
+      "source": "datahub:lineage",
+      "source_system": "DATAHUB",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "field_path": null,
+      "observation": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED feeds ECOMMERCE.ANALYTICS.SALES_DAILY (1 hop(s)): ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "relevance": "HIGH",
+      "observed_at": "2026-03-11 10:20:00",
+      "lineage_distance": 1,
+      "metadata": {
+        "path": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+        "distance": 1
+      }
+    },
+    {
+      "id": "ca863732-28ca-479a-89d0-3dde82537f8e",
+      "type": "LINEAGE_DEPENDENCY",
+      "source": "datahub:lineage",
+      "source_system": "DATAHUB",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,erp.public.orders,PROD)",
+      "field_path": null,
+      "observation": "erp.public.orders feeds ECOMMERCE.ANALYTICS.SALES_DAILY (4 hop(s)): erp.public.orders -> ecommerce/raw/orders -> ECOMMERCE.RAW.ORDERS_RAW -> ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "relevance": "MEDIUM",
+      "observed_at": "2026-03-11 10:20:00",
+      "lineage_distance": 4,
+      "metadata": {
+        "path": "erp.public.orders -> ecommerce/raw/orders -> ECOMMERCE.RAW.ORDERS_RAW -> ECOMMERCE.ANALYTICS.ORDERS_ENRICHED -> ECOMMERCE.ANALYTICS.SALES_DAILY",
+        "distance": 4
+      }
+    },
+    {
+      "id": "bd270516-3dea-490d-83c8-b512fef330fc",
+      "type": "OWNERSHIP_SIGNAL",
+      "source": "datahub:ownership",
+      "source_system": "DATAHUB",
+      "source_mode": "DEMO_FIXTURE",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "field_path": null,
+      "observation": "ECOMMERCE.ANALYTICS.SALES_DAILY is owned by Analytics Engineering",
+      "relevance": "LOW",
+      "observed_at": "2026-03-11 10:20:00",
+      "lineage_distance": 0,
+      "metadata": {
+        "owners": [
+          {
+            "urn": "urn:li:corpGroup:analytics-engineering",
+            "name": "Analytics Engineering",
+            "type": "DATAOWNER",
+            "email": "analytics-eng@example.com"
+          }
+        ]
+      }
+    }
+  ]
+}

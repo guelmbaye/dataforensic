@@ -1,0 +1,10 @@
+{
+  "title": "Missing diagnoses in patient_360",
+  "description": "Clinical operations report that a large share of patients have no primary diagnosis.",
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+  "severity": "HIGH",
+  "observed_value": "61% diagnosis coverage",
+  "expected_value": "~98.5% diagnosis coverage",
+  "detected_at": "2026-03-11T14:10:00Z",
+  "scenario_id": "healthcare-quality"
+}

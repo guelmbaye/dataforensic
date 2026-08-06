@@ -1,0 +1,10 @@
+{
+  "title": "Taxi trip data is stale",
+  "description": "The daily taxi aggregate has not refreshed and operations are looking at yesterday's numbers.",
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,NYC_TAXI.ANALYTICS.TRIPS_DAILY,PROD)",
+  "severity": "MEDIUM",
+  "observed_value": "0 rows loaded today",
+  "expected_value": "~145,000 rows loaded daily",
+  "detected_at": "2026-03-11T08:30:00Z",
+  "scenario_id": "pipeline-freshness"
+}

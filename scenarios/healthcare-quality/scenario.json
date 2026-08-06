@@ -1,0 +1,220 @@
+{
+  "id": "healthcare-quality",
+  "title": "Diagnosis codes missing in patient_360",
+  "datapack": "healthcare",
+  "target_asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+  "corruption_entry_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,healthcare.public.patient_admissions,PROD)",
+  "incident_time": "2026-03-11T14:10:00Z",
+  "initial_state": "BROKEN",
+  "description": "The source hospital system starts delivering admissions without diagnosis codes.",
+  "timeline": [
+    {
+      "timestamp": "2026-03-11T13:30:00Z",
+      "label": "Source system delivers a batch with missing diagnosis codes"
+    },
+    {
+      "timestamp": "2026-03-11T13:55:00Z",
+      "label": "patient_360 refresh propagates the gap"
+    },
+    {
+      "timestamp": "2026-03-11T14:10:00Z",
+      "label": "Clinical operations reports missing diagnoses"
+    }
+  ],
+  "states": {
+    "BROKEN": {
+      "metrics": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "name": "diagnosis_coverage_rate",
+          "value": 0.61,
+          "baseline": 0.985,
+          "unit": "ratio",
+          "observed_at": "2026-03-11T14:05:00Z"
+        }
+      ],
+      "quality": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,healthcare.public.patient_admissions,PROD)",
+          "check": "null_rate",
+          "value": 0.38,
+          "baseline": 0.012,
+          "status": "FAIL",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T13:40:00Z",
+          "field": "diagnosis_code"
+        },
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "check": "null_rate",
+          "value": 0.39,
+          "baseline": 0.015,
+          "status": "FAIL",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T14:05:00Z",
+          "field": "primary_diagnosis"
+        }
+      ],
+      "mappings": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,healthcare,PROD),patient_360)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "field": "primary_diagnosis",
+          "expected_source_field": "diagnosis_code",
+          "resolved_source_field": "diagnosis_code",
+          "status": "HEALTHY",
+          "observed_at": "2026-03-11T13:55:00Z"
+        }
+      ],
+      "pipeline_runs": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,healthcare,PROD),patient_360)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T13:55:00Z",
+          "lag_minutes": 6,
+          "sla_minutes": 120
+        }
+      ],
+      "downstream_checks": {
+        "urn:li:dashboard:(tableau,care_operations)": false
+      }
+    },
+    "REMEDIATED": {
+      "metrics": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "name": "diagnosis_coverage_rate",
+          "value": 0.981,
+          "baseline": 0.985,
+          "unit": "ratio",
+          "observed_at": "2026-03-11T15:20:00Z"
+        }
+      ],
+      "quality": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,healthcare.public.patient_admissions,PROD)",
+          "check": "null_rate",
+          "value": 0.013,
+          "baseline": 0.012,
+          "status": "PASS",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T15:05:00Z",
+          "field": "diagnosis_code"
+        },
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "check": "null_rate",
+          "value": 0.016,
+          "baseline": 0.015,
+          "status": "PASS",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T15:20:00Z",
+          "field": "primary_diagnosis"
+        }
+      ],
+      "mappings": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,healthcare,PROD),patient_360)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "field": "primary_diagnosis",
+          "expected_source_field": "diagnosis_code",
+          "resolved_source_field": "diagnosis_code",
+          "status": "HEALTHY",
+          "observed_at": "2026-03-11T15:15:00Z"
+        }
+      ],
+      "pipeline_runs": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,healthcare,PROD),patient_360)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T15:15:00Z",
+          "lag_minutes": 6,
+          "sla_minutes": 120
+        }
+      ],
+      "downstream_checks": {
+        "urn:li:dashboard:(tableau,care_operations)": true
+      }
+    }
+  },
+  "remediation": {
+    "applies_to_patterns": [
+      "SOURCE_DATA_ANOMALY",
+      "PIPELINE_FAILURE"
+    ],
+    "diagnosis": "The source system delivered a batch with missing {field}, and the gap propagated into {asset}.",
+    "expected_result": "Diagnosis coverage returns to its normal level across the chain.",
+    "rollback": "Restore the previous ingestion configuration; the quarantined batch is kept intact.",
+    "steps": [
+      {
+        "id": "isolate_batch",
+        "title": "Isolate the anomalous batch",
+        "description": "Flag the incomplete source batch so it stops feeding downstream consumers.",
+        "risk": "LOW"
+      },
+      {
+        "id": "contact_source_owner",
+        "title": "Contact the source owner",
+        "description": "Confirm the missing codes with the hospital information system owner.",
+        "risk": "LOW"
+      },
+      {
+        "id": "reingest_corrected_batch",
+        "title": "Re-ingest the corrected batch",
+        "description": "Ingest the corrected extract once the source system republishes it.",
+        "risk": "LOW",
+        "effect": "REMEDIATED"
+      },
+      {
+        "id": "validate_downstream",
+        "title": "Validate downstream assets",
+        "description": "Re-run the clinical quality checks downstream.",
+        "risk": "LOW"
+      }
+    ]
+  },
+  "remediation_effects": {
+    "reingest_corrected_batch": "REMEDIATED"
+  },
+  "verification_checks": [
+    {
+      "name": "source_null_rate_normalized",
+      "type": "QUALITY",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,healthcare.public.patient_admissions,PROD)",
+      "check": "null_rate",
+      "field": "diagnosis_code",
+      "max": 0.05,
+      "critical": true,
+      "description": "The source system delivers diagnosis codes again."
+    },
+    {
+      "name": "target_null_rate_normalized",
+      "type": "QUALITY",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+      "check": "null_rate",
+      "field": "primary_diagnosis",
+      "max": 0.05,
+      "critical": true,
+      "description": "The consolidated patient view is complete again."
+    },
+    {
+      "name": "diagnosis_coverage_recovered",
+      "type": "METRIC",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,HEALTHCARE.ANALYTICS.PATIENT_360,PROD)",
+      "metric": "diagnosis_coverage_rate",
+      "expected": 0.985,
+      "tolerance": 0.05,
+      "critical": true,
+      "description": "Diagnosis coverage is back within 5% of its expected level."
+    },
+    {
+      "name": "downstream_assets_healthy",
+      "type": "DOWNSTREAM",
+      "expected_count": 1,
+      "critical": false,
+      "description": "The clinical operations dashboard is healthy again."
+    }
+  ]
+}

@@ -1,0 +1,315 @@
+{
+  "origin_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+  "origin_name": "ECOMMERCE.ANALYTICS.ORDERS_ENRICHED",
+  "counts": {
+    "datasets": 4,
+    "dashboards": 3,
+    "charts": 0,
+    "ml_assets": 2,
+    "data_jobs": 0,
+    "consumers_other": 0
+  },
+  "total_affected_assets": 9,
+  "consumers": 7,
+  "owners": [
+    {
+      "urn": "urn:li:corpGroup:analytics-engineering",
+      "name": "Analytics Engineering",
+      "email": "analytics-eng@example.com",
+      "type": "DATAOWNER",
+      "assets": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+        "urn:li:dashboard:(looker,revenue_overview)",
+        "urn:li:dashboard:(powerbi,executive_kpi)",
+        "urn:li:dashboard:(tableau,regional_sales)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)"
+      ]
+    },
+    {
+      "urn": "urn:li:corpGroup:finance-systems",
+      "name": "Finance Systems",
+      "email": "finance-systems@example.com",
+      "type": "BUSINESS_OWNER",
+      "assets": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)"
+      ]
+    },
+    {
+      "urn": "urn:li:corpGroup:ml-platform",
+      "name": "ML Platform",
+      "email": "ml-platform@example.com",
+      "type": "DATAOWNER",
+      "assets": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)"
+      ]
+    }
+  ],
+  "owner_count": 3,
+  "risk_level": "CRITICAL",
+  "risk_score": 100.0,
+  "risk_factors": [
+    "2 ML asset(s) consume the affected data",
+    "3 dashboard(s) rely on the affected data",
+    "8 downstream asset(s) are business critical",
+    "3 distinct owning team(s) impacted"
+  ],
+  "critical_assets": [
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "name": "ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "reason": [
+        "finance",
+        "tier1"
+      ]
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "name": "ECOMMERCE.ML.CUSTOMER_FEATURES",
+      "reason": "HIGH"
+    },
+    {
+      "urn": "urn:li:dashboard:(looker,revenue_overview)",
+      "name": "Revenue Overview",
+      "reason": [
+        "tier1"
+      ]
+    },
+    {
+      "urn": "urn:li:dashboard:(powerbi,executive_kpi)",
+      "name": "Executive KPI",
+      "reason": [
+        "tier1"
+      ]
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)",
+      "name": "ECOMMERCE.ANALYTICS.REVENUE_BY_REGION",
+      "reason": "HIGH"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)",
+      "name": "ECOMMERCE.FINANCE.MONTHLY_CLOSE",
+      "reason": [
+        "finance",
+        "sox",
+        "tier1"
+      ]
+    },
+    {
+      "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+      "name": "churn_propensity",
+      "reason": [
+        "tier1"
+      ]
+    },
+    {
+      "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)",
+      "name": "demand_forecast",
+      "reason": "HIGH"
+    }
+  ],
+  "affected_assets": [
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "name": "ECOMMERCE.ANALYTICS.SALES_DAILY",
+      "entity_type": "DATASET",
+      "platform": "snowflake",
+      "distance": 1,
+      "criticality": "CRITICAL",
+      "tags": [
+        "Tier1",
+        "Certified",
+        "Finance",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "datasets",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)",
+      "name": "ECOMMERCE.ML.CUSTOMER_FEATURES",
+      "entity_type": "DATASET",
+      "platform": "snowflake",
+      "distance": 1,
+      "criticality": "HIGH",
+      "tags": [
+        "Feature",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "datasets",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:ml-platform",
+          "name": "ML Platform",
+          "type": "DATAOWNER",
+          "email": "ml-platform@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)",
+      "name": "ECOMMERCE.ANALYTICS.REVENUE_BY_REGION",
+      "entity_type": "DATASET",
+      "platform": "snowflake",
+      "distance": 2,
+      "criticality": "HIGH",
+      "tags": [
+        "Certified",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "datasets",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)",
+      "name": "ECOMMERCE.FINANCE.MONTHLY_CLOSE",
+      "entity_type": "DATASET",
+      "platform": "snowflake",
+      "distance": 2,
+      "criticality": "CRITICAL",
+      "tags": [
+        "Tier1",
+        "SOX",
+        "Finance",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "datasets",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:finance-systems",
+          "name": "Finance Systems",
+          "type": "BUSINESS_OWNER",
+          "email": "finance-systems@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:dashboard:(powerbi,executive_kpi)",
+      "name": "Executive KPI",
+      "entity_type": "DASHBOARD",
+      "platform": "powerbi",
+      "distance": 2,
+      "criticality": "CRITICAL",
+      "tags": [
+        "Tier1",
+        "Executive",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "dashboards",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:dashboard:(tableau,regional_sales)",
+      "name": "Regional Sales",
+      "entity_type": "DASHBOARD",
+      "platform": "tableau",
+      "distance": 2,
+      "criticality": "MEDIUM",
+      "tags": [
+        "Certified",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "dashboards",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:dashboard:(looker,revenue_overview)",
+      "name": "Revenue Overview",
+      "entity_type": "DASHBOARD",
+      "platform": "looker",
+      "distance": 2,
+      "criticality": "HIGH",
+      "tags": [
+        "Tier1",
+        "Executive",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "dashboards",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:analytics-engineering",
+          "name": "Analytics Engineering",
+          "type": "DATAOWNER",
+          "email": "analytics-eng@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_propensity,PROD)",
+      "name": "churn_propensity",
+      "entity_type": "MLMODEL",
+      "platform": "mlflow",
+      "distance": 2,
+      "criticality": "HIGH",
+      "tags": [
+        "Tier1",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "ml_assets",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:ml-platform",
+          "name": "ML Platform",
+          "type": "DATAOWNER",
+          "email": "ml-platform@example.com"
+        }
+      ]
+    },
+    {
+      "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,demand_forecast,PROD)",
+      "name": "demand_forecast",
+      "entity_type": "MLMODEL",
+      "platform": "mlflow",
+      "distance": 2,
+      "criticality": "HIGH",
+      "tags": [
+        "Certified",
+        "DataForensic:SCHEMA_DRIFT"
+      ],
+      "bucket": "ml_assets",
+      "owners": [
+        {
+          "urn": "urn:li:corpGroup:ml-platform",
+          "name": "ML Platform",
+          "type": "DATAOWNER",
+          "email": "ml-platform@example.com"
+        }
+      ]
+    }
+  ],
+  "computed_from": {
+    "lineage_direction": "DOWNSTREAM",
+    "lineage_depth": 4,
+    "lineage_node_count": 10
+  }
+}

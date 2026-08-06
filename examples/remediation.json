@@ -1,0 +1,93 @@
+{
+  "action_id": "2687d662-378f-4133-a9f8-399ba248029e",
+  "investigation_id": "a3d611b2-4685-4344-b639-c9c603ff1fb3",
+  "type": "EXECUTE_SIMULATED",
+  "status": "EXECUTED",
+  "diagnosis": "The upstream field discount_amount was renamed, so the transformation feeding SALES_DAILY could no longer resolve it and wrote NULL discounts.",
+  "steps": [
+    {
+      "id": "restore_field_mapping",
+      "title": "Restore field mapping",
+      "description": "Map orders_enriched.discount_amount to the renamed upstream field discount_value.",
+      "risk": "LOW",
+      "effect": "REMEDIATED",
+      "executed": true,
+      "result": {
+        "applied": true,
+        "environment": "SIMULATION"
+      }
+    },
+    {
+      "id": "replay_affected_records",
+      "title": "Replay affected records",
+      "description": "Reprocess every order ingested since the schema change.",
+      "risk": "LOW",
+      "effect": null,
+      "executed": true,
+      "result": {
+        "applied": true,
+        "environment": "SIMULATION"
+      }
+    },
+    {
+      "id": "recompute_revenue",
+      "title": "Recompute revenue",
+      "description": "Recompute the daily aggregate for the impacted window.",
+      "risk": "LOW",
+      "effect": null,
+      "executed": true,
+      "result": {
+        "applied": true,
+        "environment": "SIMULATION"
+      }
+    },
+    {
+      "id": "validate_downstream",
+      "title": "Validate downstream assets",
+      "description": "Re-run quality checks on the impacted downstream assets.",
+      "risk": "LOW",
+      "effect": null,
+      "executed": true,
+      "result": {
+        "applied": true,
+        "environment": "SIMULATION"
+      }
+    },
+    {
+      "id": "notify_owners",
+      "title": "Notify owners",
+      "description": "Inform the owning teams of the schema change and of the applied fix.",
+      "risk": "LOW",
+      "effect": null,
+      "executed": true,
+      "result": {
+        "applied": true,
+        "environment": "SIMULATION"
+      }
+    }
+  ],
+  "risk_level": "LOW",
+  "requires_approval": false,
+  "execution_mode": "SIMULATED",
+  "expected_result": "Discount values are populated again and the daily revenue metric returns to its expected range.",
+  "rollback": "Re-point the mapping to its previous source field; no record is removed at any step.",
+  "notify_owners": [
+    "Analytics Engineering",
+    "Finance Systems",
+    "ML Platform"
+  ],
+  "executed_at": "2026-08-06 10:35:37.878201",
+  "result": {
+    "environment": "SIMULATION",
+    "scenario_id": "revenue-collapse",
+    "scenario_state": "REMEDIATED",
+    "applied_steps": [
+      "restore_field_mapping",
+      "replay_affected_records",
+      "recompute_revenue",
+      "validate_downstream",
+      "notify_owners"
+    ],
+    "note": "Controlled simulation only - no production system was modified."
+  }
+}

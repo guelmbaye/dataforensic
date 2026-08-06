@@ -1,0 +1,48 @@
+{
+  "score": 85.0,
+  "max_score": 100.0,
+  "decision": "HIGH_CONFIDENCE",
+  "rationale": "Grounding is incomplete (historical match). Treat the conclusion as a lead to confirm rather than an established fact.",
+  "checks": [
+    {
+      "key": "evidence_quality",
+      "label": "Evidence quality",
+      "status": "PASS",
+      "points": 30.0,
+      "max_points": 30.0,
+      "detail": "9 causal signals across 4 independent types, 5 of them high relevance."
+    },
+    {
+      "key": "schema_validation",
+      "label": "Schema validation",
+      "status": "PASS",
+      "points": 20.0,
+      "max_points": 20.0,
+      "detail": "Every field named by the conclusion exists in the retrieved schemas: discount_amount, net_revenue."
+    },
+    {
+      "key": "lineage_coverage",
+      "label": "Lineage coverage",
+      "status": "PASS",
+      "points": 20.0,
+      "max_points": 20.0,
+      "detail": "4 upstream and 5 downstream assets walked; every cited asset sits in the graph."
+    },
+    {
+      "key": "quality_signals",
+      "label": "Quality signals",
+      "status": "PASS",
+      "points": 15.0,
+      "max_points": 15.0,
+      "detail": "2 quality checks known to DataHub and 2 measured anomalies corroborate the incident."
+    },
+    {
+      "key": "historical_match",
+      "label": "Historical match",
+      "status": "FAIL",
+      "points": 0.0,
+      "max_points": 15.0,
+      "detail": "First time this shape of incident is seen; there is no precedent to lean on."
+    }
+  ]
+}

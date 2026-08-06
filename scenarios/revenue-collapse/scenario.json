@@ -1,0 +1,284 @@
+{
+  "id": "revenue-collapse",
+  "title": "Revenue collapse on sales_daily",
+  "datapack": "showcase-ecommerce",
+  "target_asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+  "corruption_entry_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+  "incident_time": "2026-03-11T10:20:00Z",
+  "initial_state": "BROKEN",
+  "description": "An ERP field rename silently breaks the discount mapping and corrupts net revenue.",
+  "timeline": [
+    {
+      "timestamp": "2026-03-11T10:02:00Z",
+      "label": "ERP schema change: discount_amount renamed to discount_value"
+    },
+    {
+      "timestamp": "2026-03-11T10:07:00Z",
+      "label": "Ingestion pipeline executes successfully with the new schema"
+    },
+    {
+      "timestamp": "2026-03-11T10:12:00Z",
+      "label": "NULL rate on orders_enriched.discount_amount jumps to 31.7%"
+    },
+    {
+      "timestamp": "2026-03-11T10:15:00Z",
+      "label": "sales_daily refresh completes"
+    },
+    {
+      "timestamp": "2026-03-11T10:18:00Z",
+      "label": "Revenue metric drops 18.5%"
+    },
+    {
+      "timestamp": "2026-03-11T10:20:00Z",
+      "label": "Incident reported"
+    }
+  ],
+  "states": {
+    "BROKEN": {
+      "metrics": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+          "name": "revenue_daily_usd",
+          "value": 10100000,
+          "baseline": 12400000,
+          "unit": "USD",
+          "observed_at": "2026-03-11T10:18:00Z"
+        }
+      ],
+      "quality": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+          "check": "null_rate",
+          "value": 0.317,
+          "baseline": 0.021,
+          "status": "FAIL",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T10:12:00Z",
+          "field": "discount_amount"
+        },
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+          "check": "net_revenue_variance",
+          "value": 0.185,
+          "baseline": 0.02,
+          "status": "FAIL",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T10:18:00Z",
+          "field": "net_revenue"
+        }
+      ],
+      "mappings": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+          "field": "discount_amount",
+          "expected_source_field": "discount_amount",
+          "resolved_source_field": null,
+          "status": "UNRESOLVED",
+          "observed_at": "2026-03-11T10:07:00Z"
+        }
+      ],
+      "pipeline_runs": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),extract_orders)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.RAW.ORDERS_RAW,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T10:07:00Z",
+          "lag_minutes": 5,
+          "sla_minutes": 60
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T10:12:00Z",
+          "lag_minutes": 4,
+          "sla_minutes": 60
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),sales_daily)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T10:15:00Z",
+          "lag_minutes": 3,
+          "sla_minutes": 60
+        }
+      ],
+      "downstream_checks": {
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)": false,
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)": false,
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)": false,
+        "urn:li:dashboard:(looker,revenue_overview)": false
+      }
+    },
+    "REMEDIATED": {
+      "metrics": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+          "name": "revenue_daily_usd",
+          "value": 12300000,
+          "baseline": 12400000,
+          "unit": "USD",
+          "observed_at": "2026-03-11T11:05:00Z"
+        }
+      ],
+      "quality": [
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+          "check": "null_rate",
+          "value": 0.02,
+          "baseline": 0.021,
+          "status": "PASS",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T11:02:00Z",
+          "field": "discount_amount"
+        },
+        {
+          "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+          "check": "net_revenue_variance",
+          "value": 0.008,
+          "baseline": 0.02,
+          "status": "PASS",
+          "kind": "CONTENT",
+          "observed_at": "2026-03-11T11:05:00Z",
+          "field": "net_revenue"
+        }
+      ],
+      "mappings": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+          "field": "discount_amount",
+          "expected_source_field": "discount_amount",
+          "resolved_source_field": "discount_value",
+          "status": "HEALTHY",
+          "observed_at": "2026-03-11T11:02:00Z"
+        }
+      ],
+      "pipeline_runs": [
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(spark,erp_ingestion,PROD),extract_orders)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.RAW.ORDERS_RAW,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T10:07:00Z",
+          "lag_minutes": 5,
+          "sla_minutes": 60
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T11:02:00Z",
+          "lag_minutes": 4,
+          "sla_minutes": 60
+        },
+        {
+          "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),sales_daily)",
+          "output_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+          "status": "SUCCESS",
+          "finished_at": "2026-03-11T11:05:00Z",
+          "lag_minutes": 3,
+          "sla_minutes": 60
+        }
+      ],
+      "downstream_checks": {
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.REVENUE_BY_REGION,PROD)": true,
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.FINANCE.MONTHLY_CLOSE,PROD)": true,
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ML.CUSTOMER_FEATURES,PROD)": true,
+        "urn:li:dashboard:(looker,revenue_overview)": true
+      }
+    }
+  },
+  "remediation": {
+    "applies_to_patterns": [
+      "SCHEMA_DRIFT",
+      "TRANSFORMATION_LOGIC_CHANGE"
+    ],
+    "diagnosis": "The upstream field {field} was renamed, so the transformation feeding {asset} could no longer resolve it and wrote NULL discounts.",
+    "expected_result": "Discount values are populated again and the daily revenue metric returns to its expected range.",
+    "rollback": "Re-point the mapping to its previous source field; no record is removed at any step.",
+    "steps": [
+      {
+        "id": "restore_field_mapping",
+        "title": "Restore field mapping",
+        "description": "Map orders_enriched.discount_amount to the renamed upstream field discount_value.",
+        "risk": "LOW",
+        "effect": "REMEDIATED"
+      },
+      {
+        "id": "replay_affected_records",
+        "title": "Replay affected records",
+        "description": "Reprocess every order ingested since the schema change.",
+        "risk": "LOW"
+      },
+      {
+        "id": "recompute_revenue",
+        "title": "Recompute revenue",
+        "description": "Recompute the daily aggregate for the impacted window.",
+        "risk": "LOW"
+      },
+      {
+        "id": "validate_downstream",
+        "title": "Validate downstream assets",
+        "description": "Re-run quality checks on the impacted downstream assets.",
+        "risk": "LOW"
+      },
+      {
+        "id": "notify_owners",
+        "title": "Notify owners",
+        "description": "Inform the owning teams of the schema change and of the applied fix.",
+        "risk": "LOW"
+      }
+    ]
+  },
+  "remediation_effects": {
+    "restore_field_mapping": "REMEDIATED"
+  },
+  "verification_checks": [
+    {
+      "name": "field_mapping_restored",
+      "type": "MAPPING",
+      "job_urn": "urn:li:dataJob:(urn:li:dataFlow:(dbt,ecommerce_analytics,PROD),orders_enriched)",
+      "field": "discount_amount",
+      "expected_status": "HEALTHY",
+      "critical": true,
+      "description": "The transformation resolves the renamed upstream field again."
+    },
+    {
+      "name": "null_rate_normalized",
+      "type": "QUALITY",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.ORDERS_ENRICHED,PROD)",
+      "check": "null_rate",
+      "field": "discount_amount",
+      "max": 0.05,
+      "critical": true,
+      "description": "Discount NULL rate is back within its normal range."
+    },
+    {
+      "name": "revenue_recovery",
+      "type": "METRIC",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "metric": "revenue_daily_usd",
+      "expected": 12400000,
+      "tolerance": 0.05,
+      "critical": true,
+      "description": "Daily revenue is back within 5% of its expected value."
+    },
+    {
+      "name": "revenue_variance_normalized",
+      "type": "QUALITY",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ECOMMERCE.ANALYTICS.SALES_DAILY,PROD)",
+      "check": "net_revenue_variance",
+      "max": 0.05,
+      "critical": true,
+      "description": "Net revenue variance is back below the alerting threshold."
+    },
+    {
+      "name": "downstream_assets_healthy",
+      "type": "DOWNSTREAM",
+      "expected_count": 4,
+      "critical": true,
+      "description": "Every impacted downstream asset passes its checks again."
+    }
+  ]
+}

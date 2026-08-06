@@ -1,0 +1,29 @@
+# Environment (real values live here, never in .env.example)
+.env
+.env.local
+*.env.backup
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Local state (scenario memory, sqlite databases, build output)
+.local/
+*.db
+*.sqlite3
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

@@ -196,7 +196,13 @@ client **Streamable HTTP**. Il manque donc une pièce, et elle est standard :
 
 ```yaml
   mcp:
-    image: supercorp/supergateway:uvx      # variante avec uv/uvx préinstallés
+    # Image construite depuis le dépôt, pas tirée. L'image supergateway publiée
+    # est basée sur Alpine, et `mcp-server-datahub` ne s'y installe pas : sa
+    # dépendance `google-re2` ne publie que des wheels manylinux (glibc). Sur
+    # musl, pip les refuse, tente une compilation, et échoue faute de
+    # compilateur C++. Détails : datahub/mcp-bridge/README.md
+    build:
+      context: ./datahub/mcp-bridge
     container_name: dataforensic-mcp
     restart: unless-stopped
     environment:
@@ -206,15 +212,14 @@ client **Streamable HTTP**. Il manque donc une pièce, et elle est standard :
       # GraphQL, disponible sans opt-in. Une capacité d'écriture ouverte sur un
       # serveur exposé n'a pas de contrepartie ici.
       TOOLS_IS_MUTATION_ENABLED: "false"
-    command: >-
-      --stdio "uvx mcp-server-datahub@latest"
-      --outputTransport streamableHttp
-      --stateful
-      --streamableHttpPath /mcp
-      --healthEndpoint /healthz
-      --port 8000
     networks: [dataforensic-network, proxy-network]
 ```
+
+Le serveur MCP est installé **au moment du build**, pas au premier appel. C'est
+le second défaut de l'approche `uvx <paquet>@latest` : elle télécharge une
+vingtaine de mégaoctets *pendant* la poignée de main `initialize`, assez pour
+dépasser `DATAHUB_TIMEOUT_SECONDS` à froid — et elle recommence après chaque
+redémarrage du conteneur.
 
 `--stateful` n'est pas décoratif : le client négocie une session
 (`Mcp-Session-Id`) à l'`initialize` et la réutilise pour `tools/list` et
@@ -714,21 +719,15 @@ services:
 
   mcp:
     # Le serveur MCP officiel est stdio ; supergateway l'expose en Streamable
-    # HTTP. La variante :uvx embarque déjà uv, donc rien à construire.
-    image: supercorp/supergateway:uvx
+    # HTTP. L'image est construite ici : voir section 3.3.
+    build:
+      context: ./datahub/mcp-bridge
     container_name: dataforensic-mcp
     restart: unless-stopped
     environment:
       DATAHUB_GMS_URL: http://datahub-gms:8080
       DATAHUB_GMS_TOKEN: ${DATAHUB_TOKEN}
       TOOLS_IS_MUTATION_ENABLED: "false"
-    command: >-
-      --stdio "uvx mcp-server-datahub@latest"
-      --outputTransport streamableHttp
-      --stateful
-      --streamableHttpPath /mcp
-      --healthEndpoint /healthz
-      --port 8000
     networks: [dataforensic-network, proxy-network]
 
   postgres:
@@ -1051,15 +1050,53 @@ encore sur `/app/...`.
 
 ### `tools` est vide alors que DataHub répond
 
-La poignée de main MCP a échoué, pas la connexion GMS. Trois causes, par ordre
-de fréquence :
+État le plus trompeur du déploiement : GMS renvoie 200, `/healthz` du pont
+renvoie `ok`, `connected` vaut `true` — et la liste d'outils est vide. Les deux
+vérifications vertes portent sur des choses différentes de celle qui a échoué.
 
-1. `DATAHUB_TOKEN` absent ou expiré — le pont le transmet en `DATAHUB_GMS_TOKEN`
-   et le serveur MCP échoue au premier appel.
-2. `--stateful` oublié : le client négocie une session à l'`initialize`, et sans
-   état chaque appel repart de zéro.
-3. Le premier `uvx mcp-server-datahub@latest` télécharge le paquet. Sur un
-   démarrage à froid, la première requête peut dépasser `DATAHUB_TIMEOUT_SECONDS`.
+**Lire d'abord `/api/v1/datahub/status`**, qui rapporte désormais la poignée de
+main elle-même :
+
+```json
+"mcp": { "configured": true, "ready": false, "tools": [],
+         "error": "...", "detail": "..." }
+```
+
+Puis les logs du pont, où la vraie cause apparaît en clair :
+
+```bash
+docker compose -f docker-compose.prod.yml logs mcp | tail -40
+```
+
+Causes, par ordre de fréquence :
+
+1. **Le processus enfant est mort au démarrage.** Signature dans les logs :
+
+   ```
+   error: command 'c++' failed: No such file or directory
+   help: `google-re2` was included because `mcp-server-datahub` depends on it
+   [supergateway] Child exited: code=1
+   ```
+
+   C'est le symptôme d'une image de pont basée sur Alpine. `google-re2` ne
+   publie que des wheels **manylinux** (glibc) ; sur musl, pip les refuse et
+   tente une compilation qui échoue faute de toolchain C++. Le pont continue
+   pourtant de répondre `ok` sur `/healthz`, parce que supergateway est bien
+   vivant — c'est son enfant qui ne l'est pas. Solution : utiliser l'image
+   construite depuis `datahub/mcp-bridge/` (section 3.3), qui est basée sur
+   Debian et installe le serveur au build.
+
+2. **`DATAHUB_TOKEN` absent ou expiré** — le pont le transmet en
+   `DATAHUB_GMS_TOKEN`, et le serveur échoue au premier appel authentifié.
+
+3. **`--stateful` oublié** : le client négocie une session à l'`initialize`, et
+   sans état chaque appel repart d'une poignée de main.
+
+> Dans les trois cas, l'investigation **fonctionne quand même** : chaque lecture
+> retombe sur GraphQL, et le badge affiche toujours `LIVE DATAHUB` parce que le
+> contexte vient bien d'un DataHub réel. Ce qui se perd, c'est la démonstration
+> que le chemin MCP est emprunté — d'où l'intérêt de regarder ce champ avant la
+> vidéo plutôt qu'après.
 
 ### L'agent trouve l'asset mais aucun lineage
 

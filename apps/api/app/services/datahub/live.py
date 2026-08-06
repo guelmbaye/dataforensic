@@ -80,6 +80,10 @@ class LiveDataHubProvider(DataHubProvider):
         self.mcp = MCPClient(self.mcp_url, self.token, self.timeout) if self.mcp_url else None
         self._mcp_ready = False
         self.mcp_tools: list[str] = []
+        # Kept so the failure has somewhere to be read. An empty tool list with
+        # `connected: true` is the most misleading state this provider can be in:
+        # GMS answers, the bridge answers, and the handshake behind it died.
+        self.mcp_error: str | None = None
 
     # -- transports -------------------------------------------------------
     async def _ensure_mcp(self) -> bool:
@@ -91,11 +95,42 @@ class LiveDataHubProvider(DataHubProvider):
             await self.mcp.initialize()
             self.mcp_tools = self.mcp.tool_names
             self._mcp_ready = True
+            self.mcp_error = None
             logger.info("datahub_mcp_ready", extra={"tools": self.mcp_tools[:20]})
         except Exception as exc:  # noqa: BLE001
-            logger.warning("datahub_mcp_unavailable", extra={"error": str(exc)})
+            self.mcp_error = f"{exc.__class__.__name__}: {exc}"[:400]
+            logger.warning("datahub_mcp_unavailable", extra={"error": self.mcp_error})
             self._mcp_ready = False
         return self._mcp_ready
+
+    def mcp_status(self) -> dict[str, Any]:
+        """What the MCP transport is actually doing, including why it is not."""
+        if self.mcp is None:
+            return {
+                "configured": False,
+                "ready": False,
+                "tools": [],
+                "error": None,
+                "detail": "No DATAHUB_MCP_URL configured; every read goes through GraphQL.",
+            }
+        if self._mcp_ready:
+            return {
+                "configured": True,
+                "ready": True,
+                "tools": self.mcp_tools,
+                "error": None,
+                "detail": f"{len(self.mcp_tools)} tool(s) advertised by the MCP server.",
+            }
+        return {
+            "configured": True,
+            "ready": False,
+            "tools": [],
+            "error": self.mcp_error,
+            "detail": (
+                "The MCP endpoint answered but the handshake did not complete. "
+                "Investigations still run: every read falls back to GraphQL."
+            ),
+        }
 
     async def _try_mcp(self, operation: str, arguments: dict[str, Any]) -> tuple[bool, Any, str]:
         if not await self._ensure_mcp():

@@ -86,6 +86,13 @@ def provider_status() -> dict[str, Any]:
         "tools": _status.get("tools", []),
         "connected": bool(_status.get("connected")),
         "detail": str(_status.get("detail", "")),
+        "mcp": provider.mcp_status() if hasattr(provider, "mcp_status") else {
+            "configured": False,
+            "ready": False,
+            "tools": [],
+            "error": None,
+            "detail": "Fixture provider: no MCP transport is involved.",
+        },
     }
 
 

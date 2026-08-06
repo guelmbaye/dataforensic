@@ -69,19 +69,16 @@ services:
   # ---------------------------------------------------------------------
   mcp:
     profiles: ["datahub"]
-    image: supercorp/supergateway:uvx
+    # Built here rather than pulled: the published supergateway image is
+    # musl-based and mcp-server-datahub cannot install on it. See
+    # datahub/mcp-bridge/README.md.
+    build:
+      context: ./datahub/mcp-bridge
     container_name: dataforensic-mcp
     environment:
       DATAHUB_GMS_URL: ${DATAHUB_URL:-http://datahub-gms:8080}
       DATAHUB_GMS_TOKEN: ${DATAHUB_TOKEN:-}
       TOOLS_IS_MUTATION_ENABLED: "false"
-    command: >-
-      --stdio "uvx mcp-server-datahub@latest"
-      --outputTransport streamableHttp
-      --stateful
-      --streamableHttpPath /mcp
-      --healthEndpoint /healthz
-      --port 8000
     ports: ["8001:8000"]
 
 volumes:

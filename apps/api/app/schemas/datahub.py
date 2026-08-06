@@ -15,6 +15,7 @@ class DataHubStatus(BaseModel):
     write_back_enabled: bool = True
     detail: str = ""
     tools: list[str] = Field(default_factory=list)
+    mcp: dict[str, Any] = Field(default_factory=dict)
 
 
 class AssetContextOut(BaseModel):

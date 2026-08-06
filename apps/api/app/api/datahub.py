@@ -25,6 +25,7 @@ async def status(provider: DataHubProvider = Depends(datahub_provider)) -> DataH
         write_back_enabled=base["write_back_enabled"],
         detail=base["detail"] if health.success else (health.error or ""),
         tools=base.get("tools", []),
+        mcp=base.get("mcp", {}),
     )
 
 

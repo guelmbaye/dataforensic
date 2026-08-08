@@ -8,7 +8,7 @@ from app import __version__
 from app.api.deps import db_session
 from app.config import settings
 from app.schemas.common import HealthResponse
-from app.services.datahub import provider_status
+from app.services.datahub import probe_status
 
 router = APIRouter(tags=["health"])
 
@@ -26,7 +26,7 @@ async def health(session: AsyncSession = Depends(db_session)) -> HealthResponse:
         version=__version__,
         environment=settings.environment,
         database=database,
-        datahub=provider_status(),
+        datahub=await probe_status(),
         llm={
             "provider": settings.llm_provider,
             "model": settings.llm_model if settings.llm_provider != "none" else None,

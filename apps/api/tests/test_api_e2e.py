@@ -315,3 +315,58 @@ class TestKnowledgeApi:
         await _create_and_investigate(client)
         await client.post("/api/v1/demo/reset")
         assert (await client.get("/api/v1/patterns")).json()["total"] == 0
+
+
+class TestStatusReportsCurrentTruth:
+    """A startup snapshot is not a status.
+
+    DataHub is a heavy stack that comes up after the API and can be restarted
+    underneath it. Reporting whatever happened at boot left the deployment
+    saying `provider: uninitialised` long after DataHub had recovered.
+    """
+
+    async def test_status_answers_even_when_datahub_is_unreachable(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.core.errors import DataHubUnavailableError
+        from app.services import datahub as datahub_module
+
+        async def unreachable():
+            raise DataHubUnavailableError("Cannot resolve 'datahub-gms'")
+
+        monkeypatch.setattr(datahub_module.factory, "get_provider", unreachable)
+        monkeypatch.setattr(datahub_module.factory, "_provider", None)
+
+        response = await client.get("/api/v1/datahub/status")
+        assert response.status_code == 200, "a status endpoint must not 503"
+        body = response.json()
+        assert body["connected"] is False
+        assert body["mcp"]["ready"] is False
+        assert "fixture provider" not in body["mcp"]["detail"].lower()
+
+    async def test_health_stays_ok_while_datahub_is_down(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.core.errors import DataHubUnavailableError
+        from app.services import datahub as datahub_module
+
+        async def unreachable():
+            raise DataHubUnavailableError("Cannot resolve 'datahub-gms'")
+
+        monkeypatch.setattr(datahub_module.factory, "get_provider", unreachable)
+        monkeypatch.setattr(datahub_module.factory, "_provider", None)
+
+        body = (await client.get("/api/v1/health")).json()
+        # The API itself is healthy; only its context source is not.
+        assert body["database"] == "ok"
+        assert body["datahub"]["connected"] is False
+
+    async def test_the_provider_is_rebuilt_once_datahub_returns(self, client) -> None:
+        from app.services.datahub import factory, reset_provider
+
+        await reset_provider()
+        factory._last_attempt = 0.0
+
+        body = (await client.get("/api/v1/datahub/status")).json()
+        assert body["connected"] is True
+        assert body["provider"] != "uninitialised"

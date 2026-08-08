@@ -5,25 +5,30 @@ from fastapi import APIRouter, Depends, Query
 from app.api.deps import datahub_provider
 from app.core.errors import DataHubUnavailableError, NotFoundError
 from app.schemas.datahub import AssetContextOut, DataHubStatus
-from app.services.datahub import provider_status
+from app.services.datahub import probe_status
 from app.services.datahub.base import DataHubProvider
 
 router = APIRouter(prefix="/datahub", tags=["datahub"])
 
 
 @router.get("/status", response_model=DataHubStatus)
-async def status(provider: DataHubProvider = Depends(datahub_provider)) -> DataHubStatus:
-    health = await provider.health()
-    base = provider_status()
+async def status() -> DataHubStatus:
+    """Always answers.
+
+    A status endpoint that returns 503 when the thing it reports on is down
+    tells the caller nothing it did not already suspect, and the UI badge would
+    read "API unreachable" while the API is perfectly healthy.
+    """
+    base = await probe_status()
     return DataHubStatus(
         mode=base["mode"],
-        source_mode=str(provider.source_mode),
-        provider=provider.name,
-        connected=bool(health.success),
+        source_mode=base["source_mode"],
+        provider=base["provider"],
+        connected=bool(base["connected"]),
         datahub_url=base["datahub_url"],
         mcp_url=base["mcp_url"],
         write_back_enabled=base["write_back_enabled"],
-        detail=base["detail"] if health.success else (health.error or ""),
+        detail=base["detail"],
         tools=base.get("tools", []),
         mcp=base.get("mcp", {}),
     )

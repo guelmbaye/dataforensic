@@ -322,7 +322,10 @@ class LiveDataHubProvider(DataHubProvider):
                 await self.gql.health()
                 gql_ok = True
             except Exception as exc:  # noqa: BLE001
-                detail = str(exc)[:200]
+                # Through the same translator as every other call: this string
+                # ends up in /health and in the context badge, and "[Errno -3]
+                # Temporary failure in name resolution" does not say which host.
+                detail = self._transport_error(exc)[:400]
         if not (mcp_ok or gql_ok):
             return self._fail("health", detail or "No DataHub transport is reachable")
         return self._ok(

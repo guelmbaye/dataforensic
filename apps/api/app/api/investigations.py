@@ -175,11 +175,18 @@ async def write_memory(
 
 
 def _sse(event: dict) -> str:
-    return (
-        f"id: {event['seq']}\n"
-        f"event: {event['event']}\n"
-        f"data: {json.dumps(event, default=str)}\n\n"
-    )
+    """A data frame, deliberately *unnamed*.
+
+    EventSource dispatches a frame carrying `event: <name>` only to a listener
+    registered for that exact name — `onmessage` never sees it. Naming every
+    frame after its event type therefore made the whole timeline invisible to
+    the browser: the stream connected, delivered, and nothing rendered, because
+    the only listener that ever fired was the one for the control frame.
+
+    The event name travels inside the payload instead, where every consumer can
+    read it. Named frames are reserved for control (`stream_closed`).
+    """
+    return f"id: {event['seq']}\ndata: {json.dumps(event, default=str)}\n\n"
 
 
 @router.get("/{investigation_id}/events")

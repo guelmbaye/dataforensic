@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.core.utils import to_iso
+from app.core.utils import utcnow
 from app.domain.enums import IncidentStatus, InvestigationPhase, InvestigationStatus
 from app.models.database import session_scope
 from app.models.tables import (
@@ -24,6 +25,7 @@ from app.models.tables import (
     Verification,
 )
 from app.services.datahub import get_provider
+from app.services.scenario import ScenarioRuntime
 
 logger = get_logger(__name__)
 
@@ -63,12 +65,17 @@ class InvestigationService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def start(self, incident_id: str, background: bool = True) -> Investigation:
+    async def start(
+        self, incident_id: str, background: bool = True, force: bool = False
+    ) -> Investigation:
         incident = await self.session.get(Incident, incident_id)
         if incident is None:
             raise NotFoundError(f"Incident {incident_id} not found")
-        if incident.status == str(IncidentStatus.RESOLVED):
-            raise ValidationError("This incident is already resolved")
+        if incident.status == str(IncidentStatus.RESOLVED) and not force:
+            raise ValidationError(
+                "This incident is already resolved. Re-run it with force=true to "
+                "investigate again."
+            )
 
         running = (
             (
@@ -83,7 +90,36 @@ class InvestigationService:
             .first()
         )
         if running is not None:
-            return running
+            alive = get_task(running.id) is not None and not get_task(running.id).done()
+            if alive and not force:
+                return running
+            # Either the caller asked for a re-run, or the investigation is
+            # marked RUNNING with nothing running it — which is what an API
+            # restart mid-investigation leaves behind. Without this, the incident
+            # is stuck forever behind a task that no longer exists.
+            running.status = str(InvestigationStatus.FAILED)
+            running.phase = str(InvestigationPhase.FAILED)
+            running.completed_at = utcnow()
+            running.error = (
+                "Superseded by a new investigation."
+                if alive
+                else "Abandoned: no process was running this investigation "
+                "(the API most likely restarted). Superseded by a new run."
+            )
+            await self.session.flush()
+
+        if force:
+            # A re-run has to face the same world as the first one. After a
+            # simulated remediation the scenario is REMEDIATED, so an unreset
+            # re-run would find healthy signals and correctly conclude nothing.
+            scenario_id = incident.scenario_id
+            if scenario_id:
+                await ScenarioRuntime(self.session).reset(scenario_id)
+            if incident.status != str(IncidentStatus.CREATED):
+                incident.status = str(IncidentStatus.CREATED)
+                incident.resolved_at = None
+                incident.blocked_reason = None
+                await self.session.flush()
 
         investigation = Investigation(
             incident_id=incident_id,

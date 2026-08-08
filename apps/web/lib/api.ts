@@ -83,9 +83,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  investigate: (id: string) =>
+  investigate: (id: string, force = false) =>
     request<{ investigation_id: string; status: string; stream_url: string }>(
-      `/incidents/${id}/investigate`,
+      `/incidents/${id}/investigate${force ? "?force=true" : ""}`,
       { method: "POST" },
     ),
 

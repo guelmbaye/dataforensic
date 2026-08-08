@@ -370,3 +370,105 @@ class TestStatusReportsCurrentTruth:
         body = (await client.get("/api/v1/datahub/status")).json()
         assert body["connected"] is True
         assert body["provider"] != "uninitialised"
+
+
+class TestStreamFramesAreConsumableByABrowser:
+    """EventSource has no wildcard listener.
+
+    A frame carrying `event: <name>` is delivered only to a listener registered
+    for that exact name — `onmessage` never sees it. Naming every frame after
+    its event type made the entire timeline invisible in the browser while every
+    server-side test passed, because the tests parse `data:` lines directly.
+    """
+
+    async def test_data_frames_carry_no_event_name(self, client) -> None:
+        _, investigation_id = await _create_and_investigate(client)
+        response = await client.get(f"/api/v1/investigations/{investigation_id}/events")
+        lines = response.text.splitlines()
+
+        named = [line for line in lines if line.startswith("event: ")]
+        assert all(line == "event: stream_closed" for line in named), (
+            "only control frames may be named; data frames must reach onmessage"
+        )
+
+    async def test_every_frame_still_identifies_its_event_in_the_payload(
+        self, client
+    ) -> None:
+        _, investigation_id = await _create_and_investigate(client)
+        response = await client.get(f"/api/v1/investigations/{investigation_id}/events")
+        payloads = [
+            json.loads(line[6:])
+            for line in response.text.splitlines()
+            if line.startswith("data: ") and '"seq"' in line
+        ]
+        assert payloads
+        assert all(p.get("event") for p in payloads)
+        assert any(p["event"] == "root_cause_identified" for p in payloads)
+
+
+class TestRerunningAnInvestigation:
+    """An investigation has to be restartable, or a stuck demo stays stuck."""
+
+    async def test_a_resolved_incident_refuses_a_plain_rerun(self, client) -> None:
+        incident_id, _ = await _create_and_investigate(client)
+        response = await client.post(f"/api/v1/incidents/{incident_id}/investigate")
+        assert response.status_code == 422
+        assert "force" in response.json()["error"]["message"]
+
+    async def test_force_starts_a_fresh_investigation(self, client) -> None:
+        incident_id, first_id = await _create_and_investigate(client)
+
+        started = await client.post(
+            f"/api/v1/incidents/{incident_id}/investigate", params={"force": "true"}
+        )
+        assert started.status_code == 202
+        second_id = started.json()["investigation_id"]
+        assert second_id != first_id
+
+        await wait_for(second_id, timeout=120)
+        second = (await client.get(f"/api/v1/investigations/{second_id}")).json()
+        assert second["status"] == "COMPLETED"
+        # The world was reset, so the re-run faces the same broken state and
+        # reaches the same verified conclusion rather than finding nothing.
+        assert second["root_cause"]["pattern"] == "SCHEMA_DRIFT"
+        assert second["verification"]["status"] == "PASS"
+
+    async def test_an_abandoned_run_is_superseded_not_blocking(self, client) -> None:
+        """What an API restart mid-investigation leaves behind."""
+        from sqlalchemy import select
+
+        from app.models.database import session_scope
+        from app.models.tables import Incident, Investigation
+
+        incident_id, first_id = await _create_and_investigate(client)
+        # Model exactly what an API restart mid-investigation leaves behind:
+        # an incident still under investigation, and a run marked RUNNING with
+        # no process behind it.
+        async with session_scope() as session:
+            row = await session.get(Investigation, first_id)
+            row.status = "RUNNING"
+            row.completed_at = None
+            incident = await session.get(Incident, incident_id)
+            incident.status = "INVESTIGATING"
+            incident.resolved_at = None
+
+        started = await client.post(f"/api/v1/incidents/{incident_id}/investigate")
+        assert started.status_code == 202
+        assert started.json()["investigation_id"] != first_id
+
+        async with session_scope() as session:
+            abandoned = await session.get(Investigation, first_id)
+            assert abandoned.status == "FAILED"
+            assert "Abandoned" in (abandoned.error or "")
+
+        async with session_scope() as session:
+            rows = (
+                (
+                    await session.execute(
+                        select(Investigation).where(Investigation.incident_id == incident_id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(rows) == 2, "the history keeps both runs"

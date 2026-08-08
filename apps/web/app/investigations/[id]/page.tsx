@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EvidencePanel, HypothesisPanel } from "@/components/Evidence";
@@ -31,12 +31,14 @@ type Tab = "investigation" | "impact" | "resolution";
 
 export default function InvestigationPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const investigationId = params?.id ?? null;
 
   const [investigation, setInvestigation] = useState<Investigation | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [tab, setTab] = useState<Tab>("investigation");
   const [executing, setExecuting] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
   const evidenceRef = useRef<HTMLDivElement>(null);
 
   const running = investigation?.status === "RUNNING" || investigation === null;
@@ -70,6 +72,23 @@ export default function InvestigationPage() {
       setError(err as ApiError);
     } finally {
       setExecuting(false);
+    }
+  };
+
+  /**
+   * A run can end blocked, fail on a transient outage, or be left marked
+   * running by an API restart. Without a way back, the incident is stuck and
+   * the only recourse is the database.
+   */
+  const rerun = async () => {
+    if (!investigation) return;
+    setRerunning(true);
+    try {
+      const started = await api.investigate(investigation.incident_id, true);
+      router.push(`/investigations/${started.investigation_id}`);
+    } catch (err) {
+      setError(err as ApiError);
+      setRerunning(false);
     }
   };
 
@@ -137,6 +156,12 @@ export default function InvestigationPage() {
             )}
           </div>
         </div>
+
+        {investigation && investigation.status !== "RUNNING" ? (
+          <button type="button" className="btn ghost" onClick={rerun} disabled={rerunning}>
+            {rerunning ? "Starting…" : "Re-run investigation"}
+          </button>
+        ) : null}
       </div>
 
       <div className="workspace">

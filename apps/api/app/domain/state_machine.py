@@ -24,7 +24,10 @@ INCIDENT_TRANSITIONS: dict[IncidentStatus, set[IncidentStatus]] = {
         IncidentStatus.BLOCKED,
     },
     IncidentStatus.BLOCKED: {IncidentStatus.CREATED, IncidentStatus.INVESTIGATING},
-    IncidentStatus.RESOLVED: set(),
+    # Re-opening a resolved incident is legitimate: a regression, or a judge
+    # re-running the demo. The invariant this table protects is that RESOLVED is
+    # only ever *entered* from VERIFYING — reopening does not weaken it.
+    IncidentStatus.RESOLVED: {IncidentStatus.INVESTIGATING},
 }
 
 INVESTIGATION_TRANSITIONS: dict[InvestigationStatus, set[InvestigationStatus]] = {

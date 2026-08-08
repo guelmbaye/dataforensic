@@ -68,16 +68,24 @@ async def investigate(
     incident_id: str,
     request: Request,
     response: Response,
+    force: bool = Query(
+        default=False,
+        description=(
+            "Start a fresh investigation even if one is already running, or if "
+            "the incident is resolved. Supersedes the previous run and resets "
+            "the scenario world so the re-run faces the same conditions."
+        ),
+    ),
     guard: IdempotencyGuard = Depends(idempotency),
     session: AsyncSession = Depends(db_session),
 ) -> InvestigationStartResponse:
-    body = {"incident_id": incident_id}
+    body = {"incident_id": incident_id, "force": force}
     cached = await guard.replay(body)
     if cached:
         return InvestigationStartResponse.model_validate(cached)
 
     service = InvestigationService(session)
-    investigation = await service.start(incident_id)
+    investigation = await service.start(incident_id, force=force)
     payload = InvestigationStartResponse(
         investigation_id=investigation.id,
         incident_id=incident_id,

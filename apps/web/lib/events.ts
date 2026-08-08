@@ -64,6 +64,10 @@ export function useInvestigationStream(
     };
 
     source.onopen = () => setLive(true);
+    // Data frames arrive unnamed on purpose, so this single handler sees all of
+    // them. EventSource has no wildcard listener: a frame sent as
+    // `event: evidence_found` would only reach a listener registered for that
+    // exact name, and any event type added later would silently disappear.
     source.onmessage = (message) => ingest(message.data);
     source.addEventListener("stream_closed", () => {
       closed = true;

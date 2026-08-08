@@ -9,8 +9,12 @@ can prove which system answered.
 
 from __future__ import annotations
 
+import functools
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlparse
+
+import httpx
 
 from app.config import settings
 from app.core.logging import get_logger
@@ -61,6 +65,34 @@ MCP_MUTATION_TOOLS: dict[str, list[str]] = {
 }
 
 
+def guarded(method):
+    """No exception leaves the provider.
+
+    The contract the rest of the agent is built on is that a DataHub call
+    returns a failed ToolResult, never raises: an unreachable catalog must
+    *block* an investigation with a readable reason, not crash it with a
+    traceback. The failure-mode tests exercised that path with a stub returning
+    a failed result, so the real transport errors — DNS, refused connection,
+    timeout — walked straight past it and surfaced as
+    `ConnectError: [Errno -3] Temporary failure in name resolution` on an
+    investigation marked FAILED.
+    """
+
+    @functools.wraps(method)
+    async def wrapper(self, *args: Any, **kwargs: Any) -> ToolResult:
+        try:
+            return await method(self, *args, **kwargs)
+        except Exception as exc:  # noqa: BLE001 - this is the boundary
+            message = self._transport_error(exc)
+            logger.warning(
+                "datahub_call_failed",
+                extra={"tool": method.__name__, "error": message[:300]},
+            )
+            return self._fail(method.__name__, message)
+
+    return wrapper
+
+
 class LiveDataHubProvider(DataHubProvider):
     name = "live"
     source_mode = SourceMode.LIVE_DATAHUB
@@ -84,6 +116,33 @@ class LiveDataHubProvider(DataHubProvider):
         # `connected: true` is the most misleading state this provider can be in:
         # GMS answers, the bridge answers, and the handshake behind it died.
         self.mcp_error: str | None = None
+
+    def _transport_error(self, exc: Exception) -> str:
+        """Say which host failed, and why that usually happens here.
+
+        "Temporary failure in name resolution" on its own does not name the host
+        it could not resolve, which is the one thing needed to fix it.
+        """
+        detail = (str(exc) or exc.__class__.__name__).strip()
+        gms_host = urlparse(self.datahub_url).hostname if self.datahub_url else None
+        mcp_host = urlparse(self.mcp_url).hostname if self.mcp_url else None
+
+        if isinstance(exc, httpx.ConnectError):
+            if "name resolution" in detail.lower() or "nodename" in detail.lower():
+                return (
+                    f"Cannot resolve the DataHub hostname ('{gms_host}'"
+                    + (f"' / '{mcp_host}'" if mcp_host and mcp_host != gms_host else "")
+                    + f"): {detail}. DataHub runs in a separate compose project, so its "
+                    "containers have to be attached to this network - a network alias "
+                    "does not survive recreating them."
+                )
+            return f"Cannot reach DataHub at '{gms_host}': {detail}."
+        if isinstance(exc, httpx.TimeoutException):
+            return (
+                f"DataHub at '{gms_host}' did not answer within "
+                f"{settings.datahub_timeout_seconds}s: {detail}."
+            )
+        return f"{exc.__class__.__name__}: {detail}"
 
     # -- transports -------------------------------------------------------
     async def _ensure_mcp(self) -> bool:
@@ -253,6 +312,7 @@ class LiveDataHubProvider(DataHubProvider):
         }
 
     # -- provider API -----------------------------------------------------
+    @guarded
     async def health(self) -> ToolResult:
         mcp_ok = await self._ensure_mcp()
         gql_ok = False
@@ -277,6 +337,7 @@ class LiveDataHubProvider(DataHubProvider):
             source="datahub-mcp" if mcp_ok else "datahub-graphql",
         )
 
+    @guarded
     async def get_asset_context(self, urn: str) -> ToolResult:
         used, payload, source = await self._try_mcp("get_asset_context", {"urn": urn})
         if used and isinstance(payload, dict):
@@ -292,6 +353,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-graphql:dataset",
         )
 
+    @guarded
     async def get_schema(self, urn: str) -> ToolResult:
         context = await self.get_asset_context(urn)
         if not context.success:
@@ -302,6 +364,7 @@ class LiveDataHubProvider(DataHubProvider):
             context.source,
         )
 
+    @guarded
     async def get_lineage(self, urn: str, direction: str = "BOTH", depth: int = 3) -> ToolResult:
         used, payload, source = await self._try_mcp(
             "get_lineage", {"urn": urn, "direction": direction, "depth": depth}
@@ -359,6 +422,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-graphql:searchAcrossLineage",
         )
 
+    @guarded
     async def get_ownership(self, urn: str) -> ToolResult:
         context = await self.get_asset_context(urn)
         if not context.success:
@@ -369,6 +433,7 @@ class LiveDataHubProvider(DataHubProvider):
             "get_ownership", {"urn": urn, "owners": context.data.get("owners", [])}, context.source
         )
 
+    @guarded
     async def get_quality_context(self, urn: str) -> ToolResult:
         used, payload, source = await self._try_mcp("get_quality_context", {"urn": urn})
         if used and isinstance(payload, dict):
@@ -410,6 +475,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-graphql:assertions",
         )
 
+    @guarded
     async def find_changes(
         self, urn: str, since: datetime | str | None = None, until: datetime | str | None = None
     ) -> ToolResult:
@@ -479,6 +545,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-openapi:timeline",
         )
 
+    @guarded
     async def find_related_assets(self, urn: str, limit: int = 20) -> ToolResult:
         context = await self.get_asset_context(urn)
         if not context.success:
@@ -500,6 +567,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-graphql:search",
         )
 
+    @guarded
     async def search_assets(self, query: str, limit: int = 10) -> ToolResult:
         used, payload, source = await self._try_mcp("search_assets", {"query": query, "limit": limit})
         if used and isinstance(payload, dict):
@@ -517,6 +585,7 @@ class LiveDataHubProvider(DataHubProvider):
         )
 
     # -- write-back -------------------------------------------------------
+    @guarded
     async def write_incident_memory(
         self, document: dict[str, Any], affected_urns: list[str]
     ) -> ToolResult:
@@ -589,6 +658,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-graphql:mutation",
         )
 
+    @guarded
     async def read_incident_memory(self, reference: str) -> ToolResult:
         """Verify the write-back by reading institutional memory back from DataHub."""
         if not self.gql:
@@ -607,6 +677,7 @@ class LiveDataHubProvider(DataHubProvider):
             "datahub-graphql:institutionalMemory",
         )
 
+    @guarded
     async def search_incident_memory(
         self, pattern: str | None = None, asset_urn: str | None = None, limit: int = 10
     ) -> ToolResult:

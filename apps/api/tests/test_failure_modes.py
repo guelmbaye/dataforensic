@@ -163,3 +163,70 @@ class TestWriteBackFailure:
         assert "memory_write_failed" in event_names(output)
         assert "memory_written" not in event_names(output)
         assert output["phase"] != str(InvestigationPhase.MEMORY_WRITTEN)
+
+
+class TestTransportErrorsBlockRatherThanCrash:
+    """A real network failure must reach the same place as a refused tool call.
+
+    The other DataHub-unavailable tests stub the provider to *return* a failed
+    ToolResult. Production instead raises `httpx.ConnectError` from deep inside
+    the GraphQL client, and that path walked straight past the guard: the
+    investigation ended FAILED with a raw traceback instead of BLOCKED with a
+    reason a human can act on.
+    """
+
+    def _provider(self):
+        from app.services.datahub.live import LiveDataHubProvider
+
+        return LiveDataHubProvider(
+            datahub_url="http://datahub-gms:8080",
+            token="t",
+            mcp_url="http://dataforensic-mcp:8000/mcp",
+        )
+
+    async def test_a_dns_failure_becomes_a_failed_tool_result(self) -> None:
+        import httpx
+
+        provider = self._provider()
+
+        async def unresolvable(*args, **kwargs):
+            raise httpx.ConnectError("[Errno -3] Temporary failure in name resolution")
+
+        provider.gql.execute = unresolvable  # type: ignore[method-assign]
+        provider.mcp = None
+
+        result = await provider.get_asset_context("urn:li:dataset:(x,y,PROD)")
+        assert result.success is False
+        assert "datahub-gms" in result.error, "the failing host must be named"
+        assert "name resolution" in result.error
+        assert "network" in result.error.lower()
+
+    async def test_a_timeout_names_the_budget(self) -> None:
+        import httpx
+
+        provider = self._provider()
+
+        async def slow(*args, **kwargs):
+            raise httpx.ReadTimeout("timed out")
+
+        provider.gql.execute = slow  # type: ignore[method-assign]
+        provider.mcp = None
+
+        result = await provider.get_lineage("urn:li:dataset:(x,y,PROD)")
+        assert result.success is False
+        assert "did not answer within" in result.error
+
+    async def test_the_investigation_is_blocked_not_failed(
+        self, session, provider, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import httpx
+
+        async def unresolvable(*args: Any, **kwargs: Any):
+            raise httpx.ConnectError("[Errno -3] Temporary failure in name resolution")
+
+        monkeypatch.setattr(provider, "get_asset_context", unresolvable)
+        output = await run_scenario(session, "revenue-collapse")
+
+        assert output["status"] == str(InvestigationStatus.BLOCKED)
+        assert output["root_cause"]["pattern"] is None
+        assert "investigation_blocked" in event_names(output)

@@ -41,6 +41,18 @@ export function useInvestigationStream(
     setFinished(false);
   }, []);
 
+  // Refs survive a change of investigation; state does not reset itself either.
+  // After a re-run the hook would ask for events above the *previous* run's
+  // last sequence number and drop the new run's first frames as duplicates —
+  // leaving the timeline empty and, because the page refreshes on new events,
+  // the whole view frozen on stale data.
+  useEffect(() => {
+    seen.current = new Set();
+    highest.current = 0;
+    setEvents([]);
+    setFinished(false);
+  }, [investigationId]);
+
   useEffect(() => {
     if (!investigationId || !enabled) return;
 

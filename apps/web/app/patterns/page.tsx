@@ -68,7 +68,11 @@ export default function PatternsPage() {
           <div className="panel-body">
             <Empty
               title="Nothing learned yet"
-              message="Resolve an incident and its pattern appears here, ready for the next one."
+              message={
+                "Resolve an incident and its pattern appears here. If incidents " +
+                "are already resolved and this stays empty, open one and check " +
+                "its Resolution & memory tab — the write-back reports what went wrong."
+              }
             >
               <Link href="/" className="btn">
                 Go to incidents

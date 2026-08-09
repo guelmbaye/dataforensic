@@ -325,8 +325,18 @@ export function MemoryPanel({ memory }: { memory: MemoryReference | null }) {
       <div className="memory-ref">{memory.datahub_reference}</div>
 
       <p className="small" style={{ margin: "14px 0 0" }}>
-        The next incident on this asset starts by searching this record, so the same
-        investigation is never run twice from scratch.
+        {memory.write_back_status === "LOCAL_ONLY" ? (
+          <>
+            DataHub refused the write, so the catalog was <b>not</b> enriched — the
+            token most likely lacks tag-edit permission. The pattern was still
+            learned here, so the next similar incident is recognised.
+          </>
+        ) : (
+          <>
+            The next incident on this asset starts by searching this record, so the
+            same investigation is never run twice from scratch.
+          </>
+        )}
       </p>
     </div>
   );

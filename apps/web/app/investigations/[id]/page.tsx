@@ -62,6 +62,15 @@ export default function InvestigationPage() {
     refresh();
   }, [events.length, finished, refresh]);
 
+  // Safety net. SSE can be cut by a proxy, a sleeping tab or a flaky network,
+  // and a view that only updates on events would then stay frozen on a running
+  // investigation forever. Polling stops as soon as the run is over.
+  useEffect(() => {
+    if (!investigation || investigation.status !== "RUNNING") return;
+    const timer = setInterval(refresh, 5000);
+    return () => clearInterval(timer);
+  }, [investigation, refresh]);
+
   const execute = async (approved: boolean) => {
     if (!investigation?.remediation) return;
     setExecuting(true);

@@ -159,9 +159,15 @@ verification, confidence and trust score — attached to the affected assets,
 tagged with its pattern, and retrievable by the next investigation.
 
 The integration goes through the **DataHub MCP Server** as the primary path
-(JSON-RPC `initialize` / `tools/list` / `tools/call` over Streamable HTTP, with
-tolerant tool-name resolution), falling back to GraphQL and the Timeline API for
-anything MCP does not expose.
+(`search`, `get_entities`, `list_schema_fields`, `get_lineage`), with GraphQL
+and the Timeline API behind it for the two dimensions MCP does not expose at
+all — the change timeline and assertion history. Temporal correlation depends
+entirely on the former, so the second path is part of the design rather than a
+safety net.
+
+`/api/v1/datahub/status` reports which transport actually served the reads,
+including a failed MCP handshake and its reason. Nothing in the interface claims
+a path that was not used.
 
 ### How it works
 

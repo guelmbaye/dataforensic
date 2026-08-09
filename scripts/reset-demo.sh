@@ -9,30 +9,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-API="${API_URL:-http://localhost:8000/api/v1}"
-SERVICE="${API_SERVICE:-api}"
+# shellcheck source=lib/api.sh
+. "$(dirname "$0")/lib/api.sh"
 
-call_api() {
-  local method="$1" path="$2"
-  if [ "${FORCE_HTTP:-false}" != "true" ] \
-     && docker compose -f "$COMPOSE_FILE" ps "$SERVICE" >/dev/null 2>&1; then
-    docker compose -f "$COMPOSE_FILE" exec -T "$SERVICE" python -c "
-import sys, urllib.error, urllib.request
-
-request = urllib.request.Request('http://localhost:8000/api/v1$path', method='$method')
-try:
-    print(urllib.request.urlopen(request).read().decode())
-except urllib.error.HTTPError as error:
-    # The API answers with a structured error; a stack trace hides it.
-    body = error.read().decode(errors='replace')
-    print(f'HTTP {error.code} from $path: {body}', file=sys.stderr)
-    sys.exit(1)
-"
-  else
-    curl -sf -X "$method" "$API$path"
-  fi
-}
+call_api() { api_call "$1" "$2"; }
 
 echo "==> Resetting incidents, investigations, knowledge patterns and scenario state"
 call_api POST /demo/reset | python3 -m json.tool

@@ -104,3 +104,45 @@ class TestWriteBack:
         context = await provider.get_asset_context(SALES)
         blob = str(context.data)
         assert "DataForensic" in blob or "institutional_memory" in blob
+
+
+class TestMcpResponseFraming:
+    """The MCP reply has to be found whatever the gateway's framing.
+
+    The first version took the first `data:` line it saw. Against a gateway that
+    announces itself first, or splits one payload across several `data:` lines,
+    it reported "No JSON-RPC payload found" without ever saying what had
+    arrived — leaving a live deployment with zero tools and no way to tell why.
+    """
+
+    def test_a_payload_split_across_several_data_lines(self) -> None:
+        from app.services.datahub.mcp_client import MCPClient
+
+        body = 'event: message\ndata: {"jsonrpc": "2.0", "id": 1,\ndata:  "result": {"tools": []}}\n\n'
+        assert MCPClient._parse_sse(body)["result"] == {"tools": []}
+
+    def test_a_preamble_event_is_skipped(self) -> None:
+        from app.services.datahub.mcp_client import MCPClient
+
+        body = (
+            ": keep-alive\n\n"
+            'event: endpoint\ndata: {"url": "/messages"}\n\n'
+            'event: message\ndata: {"jsonrpc": "2.0", "id": 1, "result": {"ok": true}}\n\n'
+        )
+        assert MCPClient._parse_sse(body)["result"] == {"ok": True}
+
+    def test_an_empty_body_says_what_that_means(self) -> None:
+        import pytest as _pytest
+
+        from app.services.datahub.mcp_client import MCPClient, MCPError
+
+        with _pytest.raises(MCPError, match="empty body"):
+            MCPClient._parse_sse("", "text/event-stream", 202)
+
+    def test_an_unrecognised_body_is_quoted_back(self) -> None:
+        import pytest as _pytest
+
+        from app.services.datahub.mcp_client import MCPClient, MCPError
+
+        with _pytest.raises(MCPError, match="ping"):
+            MCPClient._parse_sse("event: ping\ndata: nope\n\n", "text/event-stream", 200)

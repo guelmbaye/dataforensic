@@ -63,14 +63,59 @@ class MCPClient:
         return self._request_id
 
     @staticmethod
-    def _parse_sse(body: str) -> dict[str, Any]:
+    def _parse_sse(body: str, content_type: str = "", status: int = 200) -> dict[str, Any]:
+        """Pull the JSON-RPC reply out of an SSE body.
+
+        Written defensively because the framing varies between gateways: data
+        can span several lines within one event, comments and `event:` / `id:` /
+        `retry:` lines are interleaved, and some servers emit a handshake event
+        before the reply. Taking only the first `data:` line found the wrong
+        thing, or nothing, and reported it as "no payload" without ever saying
+        what had actually arrived.
+        """
+        events: list[str] = []
+        current: list[str] = []
+
         for raw_line in body.splitlines():
-            line = raw_line.strip()
+            line = raw_line.rstrip("\r")
+            if not line.strip():
+                if current:
+                    events.append("\n".join(current))
+                    current = []
+                continue
+            if line.startswith(":"):  # comment / keep-alive
+                continue
             if line.startswith("data:"):
-                payload = line[5:].strip()
-                if payload and payload != "[DONE]":
-                    return json.loads(payload)
-        raise MCPError("No JSON-RPC payload found in SSE response")
+                current.append(line[5:].lstrip())
+        if current:
+            events.append("\n".join(current))
+
+        for payload in events:
+            if not payload or payload == "[DONE]":
+                continue
+            try:
+                parsed = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            # A gateway may announce itself before answering; the reply is the
+            # frame that carries a JSON-RPC envelope.
+            if isinstance(parsed, dict) and (
+                "jsonrpc" in parsed or "result" in parsed or "error" in parsed
+            ):
+                return parsed
+
+        if not body.strip():
+            raise MCPError(
+                f"The MCP endpoint answered HTTP {status} with an empty body. "
+                "This client expects the reply on the same response; a gateway "
+                "that only delivers it on a separately opened stream is not "
+                "supported."
+            )
+        preview = body.strip()[:300].replace("\n", " | ")
+        raise MCPError(
+            f"No JSON-RPC payload in the response (content-type: "
+            f"{content_type or 'unknown'}, HTTP {status}). First bytes: {preview}"
+        )
 
     async def _rpc(self, method: str, params: dict[str, Any] | None = None) -> Any:
         client = await self._http()
@@ -85,7 +130,7 @@ class MCPClient:
             self._session_id = session_id
         content_type = response.headers.get("content-type", "")
         payload = (
-            self._parse_sse(response.text)
+            self._parse_sse(response.text, content_type, response.status_code)
             if "text/event-stream" in content_type
             else response.json()
         )

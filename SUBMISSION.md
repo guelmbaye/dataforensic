@@ -28,6 +28,17 @@ straight into the corresponding field.
 | Built with | `python` `fastapi` `nextjs` `react` `typescript` `postgresql` `docker` `datahub` `mcp` `sse` |
 | DataHub integration | MCP Server (primary) + GraphQL / Timeline API fallback + a reusable DataHub Skill |
 
+### "Which DataHub technologies did you use?"
+
+| Option | Tick | Why |
+|---|---|---|
+| DataHub OSS / Core Platform | **yes** | Core 1.7 quickstart, GraphQL API, Timeline API, entity/aspect model, tags, ownership, lineage, write-back |
+| DataHub MCP Server | **yes** | `mcp-server-datahub` behind an HTTP bridge; primary read path. **Verify `/api/v1/datahub/status` reports `mcp.ready: true` before ticking** — a ticked box next to a failed handshake is worse than an unticked one |
+| DataHub Agent Context Kit | no | Not used. The agent talks to MCP and GraphQL directly |
+| DataHub Skills | judgement call | A reusable Skill was *authored* (`datahub/skills/incident-investigation/`), but it is not consumed through DataHub's Skills feature and follows this repo's packaging. Tick only alongside that disclosure |
+| Analytics Agent | no | Not used |
+| Other | **yes** | Timeline API, GraphQL API, `acryl-datahub` Python SDK (graph seeding), and the CLI (`docker quickstart`, `init`, `datapack load`) |
+
 **Testing instructions** (paste into the testing field):
 
 > No login required. Open `https://dataforensic.vylantic.com`, pick the

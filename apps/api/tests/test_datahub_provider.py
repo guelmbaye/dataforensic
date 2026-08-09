@@ -146,3 +146,30 @@ class TestMcpResponseFraming:
 
         with _pytest.raises(MCPError, match="ping"):
             MCPClient._parse_sse("event: ping\ndata: nope\n\n", "text/event-stream", 200)
+
+    def test_a_payload_split_mid_token_is_still_read(self) -> None:
+        """Not spec-compliant, but gateways do it — and the spec's newline join
+        turns such a payload into invalid JSON."""
+        from app.services.datahub.mcp_client import MCPClient
+
+        body = (
+            'event: message\ndata: {"jsonrpc":"2.0","id":1,"result":{"protocolV\n'
+            'data: ersion":"2025-06-18"}}\n\n'
+        )
+        assert MCPClient._parse_sse(body)["result"]["protocolVersion"] == "2025-06-18"
+
+    def test_a_streamed_reply_is_routed_to_its_waiter(self) -> None:
+        """The shape supergateway uses: the POST answers empty and the reply
+        arrives on the separately opened stream."""
+        import asyncio
+
+        from app.services.datahub.mcp_client import MCPClient
+
+        async def scenario() -> dict:
+            client = MCPClient("http://localhost:1/mcp", token=None, timeout=1)
+            waiter = asyncio.get_running_loop().create_future()
+            client._pending[7] = waiter
+            client._dispatch('event: message\ndata: {"jsonrpc":"2.0","id":7,"result":{"ok":1}}')
+            return await asyncio.wait_for(waiter, timeout=1)
+
+        assert asyncio.run(scenario())["result"] == {"ok": 1}

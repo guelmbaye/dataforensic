@@ -651,6 +651,10 @@ API_PREFIX=/api/v1
 # La seule surface CORS du projet (section 6).
 CORS_ORIGINS=https://dataforensic.vylantic.com
 
+# Le lien écrit dans DataHub à côté de chaque investigation. Laissé sur
+# localhost, il pointe dans le vide depuis le navigateur d'un juge.
+PUBLIC_APP_URL=https://dataforensic.vylantic.com
+
 # ─── PostgreSQL ─────────────────────────────────────
 # Nom du container, jamais localhost : sous Docker localhost désigne l'API
 # elle-même.
@@ -1114,7 +1118,20 @@ Le nuke invalide le jeton : il faut en régénérer un et le remettre dans `.env
 sinon le pont MCP annoncera zéro outil et le write-back échouera — sans que rien
 d'autre n'ait l'air cassé.
 
-### 12.5 Vérifier que la remise à plat a eu lieu
+### 12.5 Si le reset renvoie une erreur
+
+`./scripts/reset-demo.sh` affiche désormais le corps de la réponse de l'API, pas
+une trace Python. Deux cas :
+
+- **HTTP 503** avec une version antérieure de l'API : le reset dépendait de
+  DataHub et échouait quand le catalogue était injoignable — en annulant au
+  passage tout ce qu'il venait de purger. Redéployez : le reset purge maintenant
+  la base même DataHub éteint, et rapporte `incident_memory_cleared: false` avec
+  la raison.
+- **HTTP 503 persistant après redéploiement** : c'est l'API elle-même. Vérifiez
+  `docker compose -f docker-compose.prod.yml logs api`.
+
+### 12.6 Vérifier que la remise à plat a eu lieu
 
 ```bash
 curl -sS https://api.dataforensic.vylantic.com/api/v1/incidents \
@@ -1243,6 +1260,17 @@ Causes, par ordre de fréquence :
 
 3. **`--stateful` oublié** : le client négocie une session à l'`initialize`, et
    sans état chaque appel repart d'une poignée de main.
+
+4. **`No JSON-RPC payload in the response`** : le pont répond, mais dans une
+   trame que le client ne reconnaît pas. Le message cite désormais le
+   `content-type` et les premiers octets reçus — c'est ce qu'il faut lire. Deux
+   variantes connues :
+   - corps **vide** (HTTP 200 ou 202) : la passerelle livre la réponse sur un
+     flux GET ouvert séparément — ce que fait supergateway. Le client le gère
+     désormais : il ouvre le flux à la demande et route chaque réponse vers la
+     requête correspondante ;
+   - un événement d'annonce avant la réponse, ou une charge répartie sur
+     plusieurs lignes `data:` — les deux sont désormais gérés.
 
 > Dans les trois cas, l'investigation **fonctionne quand même** : chaque lecture
 > retombe sur GraphQL, et le badge affiche toujours `LIVE DATAHUB` parce que le
@@ -1401,6 +1429,9 @@ est passé par là. En mode `fixture`, c'est là que vit la mémoire écrite.
       seulement en local
 - [ ] `/api/v1/patterns` contient au moins un pattern vérifié, pour que la
       seconde investigation démontre l'apprentissage
+- [ ] `PUBLIC_APP_URL` pointe sur le domaine public, pas sur localhost — le lien
+      écrit dans DataHub doit être cliquable depuis l'extérieur
+- [ ] Le statut de write-back affiche `VERIFIED`, pas `WRITTEN UNVERIFIED`
 - [ ] `ALLOW_REAL_REMEDIATION=false`
 - [ ] `/api/v1/demo/reset` renvoie 403 depuis Internet
 - [ ] Un compte de consultation DataHub existe, et ses identifiants sont dans les

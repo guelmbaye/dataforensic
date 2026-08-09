@@ -100,6 +100,22 @@ through raw it landed in the root-cause sentence and made the trust score report
 that it could not find a field named after a URN. It is now reduced to the field
 name.
 
+## Fifth finding: Streamable HTTP has two shapes
+
+A live gateway answered every POST with **HTTP 200 and an empty body**, delivering
+the JSON-RPC reply on a separately opened GET stream instead. The client only
+supported the single-response form, so the handshake ended with zero tools while
+the bridge itself looked healthy.
+
+The client now opens the server-to-client stream lazily — after the first POST,
+because the session id it must carry is issued by `initialize` — and routes each
+streamed reply to the waiter for its request id. Verified end to end against a
+stub gateway reproducing the behaviour.
+
+One tolerance was added along the way: the SSE spec joins multiple `data:` lines
+with a newline, but gateways do split payloads mid-token, which that join turns
+into invalid JSON. A plain concatenation is tried as a fallback.
+
 ## Not verified — and how the code protects itself
 
 **`addLink` input fields.** The mutation is listed in DataHub's mutations index,

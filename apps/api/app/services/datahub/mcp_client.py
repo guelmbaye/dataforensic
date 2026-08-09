@@ -6,6 +6,7 @@ Both `application/json` and `text/event-stream` responses are supported.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -39,6 +40,12 @@ class MCPClient:
         self._tools: list[dict[str, Any]] = []
         self._request_id = 0
         self._client: httpx.AsyncClient | None = None
+        # Streamable HTTP allows two shapes. Either the POST carries the reply,
+        # or it answers empty and the reply arrives on a separately opened GET
+        # stream. supergateway uses the second; without it the handshake ends
+        # with "HTTP 200 with an empty body" and the agent sees zero tools.
+        self._stream_task: asyncio.Task | None = None
+        self._pending: dict[int, asyncio.Future] = {}
 
     # -- plumbing ---------------------------------------------------------
     def _headers(self) -> dict[str, str]:
@@ -85,23 +92,15 @@ class MCPClient:
                 continue
             if line.startswith(":"):  # comment / keep-alive
                 continue
-            if line.startswith("data:"):
-                current.append(line[5:].lstrip())
+            current.append(line)
         if current:
             events.append("\n".join(current))
 
-        for payload in events:
-            if not payload or payload == "[DONE]":
-                continue
-            try:
-                parsed = json.loads(payload)
-            except json.JSONDecodeError:
-                continue
+        for event in events:
             # A gateway may announce itself before answering; the reply is the
             # frame that carries a JSON-RPC envelope.
-            if isinstance(parsed, dict) and (
-                "jsonrpc" in parsed or "result" in parsed or "error" in parsed
-            ):
+            parsed = MCPClient._decode_event(event)
+            if parsed and ("jsonrpc" in parsed or "result" in parsed or "error" in parsed):
                 return parsed
 
         if not body.strip():
@@ -122,18 +121,37 @@ class MCPClient:
         body = {"jsonrpc": "2.0", "id": self._next_id(), "method": method}
         if params is not None:
             body["params"] = params
-        response = await client.post(self.url, json=body, headers=self._headers())
-        if response.status_code >= 400:
-            raise MCPError(f"MCP {method} failed: HTTP {response.status_code} {response.text[:200]}")
-        session_id = response.headers.get("mcp-session-id")
-        if session_id:
-            self._session_id = session_id
-        content_type = response.headers.get("content-type", "")
-        payload = (
-            self._parse_sse(response.text, content_type, response.status_code)
-            if "text/event-stream" in content_type
-            else response.json()
-        )
+        waiter: asyncio.Future = asyncio.get_running_loop().create_future()
+        self._pending[body["id"]] = waiter
+        try:
+            response = await client.post(self.url, json=body, headers=self._headers())
+            if response.status_code >= 400:
+                raise MCPError(
+                    f"MCP {method} failed: HTTP {response.status_code} {response.text[:200]}"
+                )
+            session_id = response.headers.get("mcp-session-id")
+            if session_id:
+                self._session_id = session_id
+            content_type = response.headers.get("content-type", "")
+
+            if response.text.strip():
+                payload = (
+                    self._parse_sse(response.text, content_type, response.status_code)
+                    if "text/event-stream" in content_type
+                    else response.json()
+                )
+            else:
+                # The reply is coming on the server-to-client stream.
+                await self._ensure_stream()
+                try:
+                    payload = await asyncio.wait_for(waiter, timeout=self.timeout)
+                except TimeoutError as exc:
+                    raise MCPError(
+                        f"MCP {method}: the endpoint answered empty and no reply arrived "
+                        f"on the event stream within {self.timeout}s"
+                    ) from exc
+        finally:
+            self._pending.pop(body["id"], None)
         if isinstance(payload, dict) and payload.get("error"):
             raise MCPError(f"MCP {method} error: {payload['error']}")
         return payload.get("result") if isinstance(payload, dict) else payload
@@ -211,6 +229,78 @@ class MCPClient:
             return json.loads(joined)
         except json.JSONDecodeError:
             return {"text": joined}
+
+    async def _ensure_stream(self) -> None:
+        """Open the server-to-client stream, once, lazily.
+
+        Lazily because it is only needed by gateways that answer POSTs empty,
+        and after the first POST because the session id it must carry is issued
+        by `initialize`.
+        """
+        if self._stream_task and not self._stream_task.done():
+            return
+        self._stream_task = asyncio.create_task(self._read_stream())
+        # Give the stream a moment to connect before the caller starts waiting
+        # on a reply that can only arrive through it.
+        await asyncio.sleep(0.15)
+
+    async def _read_stream(self) -> None:
+        client = await self._http()
+        headers = {**self._headers(), "Accept": "text/event-stream"}
+        headers.pop("Content-Type", None)
+        try:
+            async with client.stream("GET", self.url, headers=headers, timeout=None) as response:
+                if response.status_code >= 400:
+                    logger.warning(
+                        "mcp_stream_rejected",
+                        extra={"status": response.status_code, "url": self.url},
+                    )
+                    return
+                block: list[str] = []
+                async for raw_line in response.aiter_lines():
+                    line = raw_line.rstrip("\r")
+                    if line.strip():
+                        if not line.startswith(":"):
+                            block.append(line)
+                        continue
+                    if block:
+                        self._dispatch("\n".join(block))
+                        block = []
+        except Exception as exc:  # noqa: BLE001 - the stream is best effort
+            logger.warning("mcp_stream_closed", extra={"error": str(exc)[:200]})
+
+    @staticmethod
+    def _decode_event(event_block: str) -> dict[str, Any] | None:
+        """Turn one SSE event into its JSON payload, if it has one.
+
+        The spec joins multiple `data:` lines with a newline. Some gateways
+        split a payload mid-token instead, which that join turns into invalid
+        JSON, so a plain concatenation is tried as well before giving up.
+        """
+        lines = [
+            line[5:].lstrip() for line in event_block.splitlines() if line.startswith("data:")
+        ]
+        if not lines:
+            return None
+        for candidate in ("\n".join(lines), "".join(lines)):
+            if not candidate or candidate == "[DONE]":
+                continue
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+        return None
+
+    def _dispatch(self, event_block: str) -> None:
+        """Hand a streamed reply to whoever is waiting for that request id."""
+        payload = self._decode_event(event_block)
+        if payload is None:
+            return
+        waiter = self._pending.get(payload.get("id"))
+        if waiter and not waiter.done():
+            waiter.set_result(payload)
 
     async def close(self) -> None:
         if self._client is not None:

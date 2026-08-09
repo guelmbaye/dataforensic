@@ -104,6 +104,11 @@ export const api = {
   getPattern: (pattern: string) =>
     request<KnowledgePattern>(`/patterns/${encodeURIComponent(pattern)}`),
 
+  resetScenario: (id: string) =>
+    request<Record<string, unknown>>(`/scenarios/${encodeURIComponent(id)}/reset`, {
+      method: "POST",
+    }),
+
   listScenarios: () =>
     request<{ items: ScenarioSummary[] }>("/scenarios"),
   resetDemo: () => request<Record<string, unknown>>("/demo/reset", { method: "POST" }),

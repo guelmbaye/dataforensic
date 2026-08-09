@@ -1,5 +1,5 @@
 # Shortcuts for the paths people actually use.
-.PHONY: help setup up down logs seed reset reset-hard test test-api test-skill scenario web-dev api-dev graph brand examples clean
+.PHONY: help setup up down logs seed probe-mcp reset reset-hard test test-api test-skill scenario web-dev api-dev graph brand examples clean
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -18,6 +18,9 @@ logs: ## Follow the API logs
 
 seed: ## Load the demo context and create the demo incident
 	./scripts/seed-demo.sh
+
+probe-mcp: ## Show what the MCP bridge actually answers
+	./scripts/probe-mcp.sh
 
 reset: ## Put the demo back to its initial state (incidents, patterns, scenarios)
 	./scripts/reset-demo.sh

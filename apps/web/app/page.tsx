@@ -182,6 +182,10 @@ export default function DashboardPage() {
                   className="btn ghost small"
                   onClick={async () => {
                     try {
+                      // A prepared scenario is only reproducible if its world
+                      // starts broken. After a previous run it is remediated,
+                      // and the agent would correctly find nothing to explain.
+                      await api.resetScenario(scenario.id);
                       const created = await api.createIncident({
                         title: scenario.incident_template.title,
                         description: scenario.incident_template.description,

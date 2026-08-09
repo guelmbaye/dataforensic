@@ -75,6 +75,11 @@ services:
     build:
       context: ./datahub/mcp-bridge
     container_name: dataforensic-mcp
+    # env_file as well: `${DATAHUB_TOKEN}` is compose interpolation, which
+    # silently yields an empty string when the variable is not where compose
+    # looks for it. The server then starts, fails to authenticate, and the
+    # bridge answers empty — indistinguishable from a transport problem.
+    env_file: [.env]
     environment:
       DATAHUB_GMS_URL: ${DATAHUB_URL:-http://datahub-gms:8080}
       DATAHUB_GMS_TOKEN: ${DATAHUB_TOKEN:-}

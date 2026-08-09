@@ -97,9 +97,15 @@ class ContextBuilder:
         self.provider = provider
         self.emit = emit
 
-    async def _emit(self, event: str, message: str, payload: dict[str, Any] | None = None) -> None:
+    async def _emit(
+        self,
+        event: str,
+        message: str,
+        payload: dict[str, Any] | None = None,
+        level: str = "info",
+    ) -> None:
         if self.emit:
-            await self.emit(event, message, payload or {})
+            await self.emit(event, message, payload or {}, level=level)
 
     async def build(
         self,
@@ -169,6 +175,27 @@ class ContextBuilder:
         related = await self.provider.find_related_assets(asset_urn, limit=10)
         context.tool_results.append(related)
         context.related = (related.unwrap({}) or {}).get("related", [])
+
+        # An asset can exist in DataHub and still carry nothing: a URN that only
+        # ever received a tag has an entity row, no schema and no lineage. The
+        # investigation can still run on behavioural signals, but every
+        # structural conclusion - blast radius above all - will be empty, and
+        # that deserves to be said out loud rather than inferred from a zero.
+        if not context.schema.get("fields") and not context.nodes:
+            await self._emit(
+                "context_incomplete",
+                (
+                    f"{context.asset_name(asset_urn)} exists in DataHub but has no schema "
+                    "and no lineage. Impact analysis will be empty and the trust score "
+                    "will reflect it. Load the datapack, or ingest the demo graph."
+                ),
+                {
+                    "asset_urn": asset_urn,
+                    "schema_fields": 0,
+                    "lineage_nodes": 0,
+                },
+                level="warning",
+            )
 
         # A field-level root cause is only defensible if the schema holding that
         # field was actually read, so the nearest upstream assets are inspected

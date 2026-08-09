@@ -29,6 +29,9 @@ import type { BlastRadius, Investigation, TrustScore } from "@/lib/types";
 
 type Tab = "investigation" | "impact" | "resolution";
 
+/** Long enough that a slow DataHub call is not mistaken for a dead run. */
+const STALLED_AFTER_MS = 90_000;
+
 export default function InvestigationPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -101,6 +104,22 @@ export default function InvestigationPage() {
     }
   };
 
+  // A run marked RUNNING with nothing behind it is exactly when a restart is
+  // needed, and hiding the control until the status changes means it is missing
+  // in the only case that matters: an API restart mid-investigation leaves the
+  // row RUNNING forever, and no event ever arrives to correct it.
+  const lastEventAt = events.length ? events[events.length - 1].created_at : null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (investigation?.status !== "RUNNING") return;
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, [investigation?.status]);
+
+  const stalled =
+    investigation?.status === "RUNNING" &&
+    now - new Date(lastEventAt ?? investigation.started_at).getTime() > STALLED_AFTER_MS;
+
   const showEvidence = () => {
     setTab("investigation");
     requestAnimationFrame(() =>
@@ -166,9 +185,9 @@ export default function InvestigationPage() {
           </div>
         </div>
 
-        {investigation && investigation.status !== "RUNNING" ? (
+        {investigation && (investigation.status !== "RUNNING" || stalled) ? (
           <button type="button" className="btn ghost" onClick={rerun} disabled={rerunning}>
-            {rerunning ? "Starting…" : "Re-run investigation"}
+            {rerunning ? "Starting…" : stalled ? "Restart — this run is stalled" : "Re-run investigation"}
           </button>
         ) : null}
       </div>

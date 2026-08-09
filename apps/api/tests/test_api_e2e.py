@@ -472,3 +472,33 @@ class TestRerunningAnInvestigation:
                 .all()
             )
             assert len(rows) == 2, "the history keeps both runs"
+
+
+class TestResetSurvivesAnUnreachableDataHub:
+    """Getting a broken environment back to a known state is exactly when the
+    catalog is likely to be down. Depending on it here meant the reset raised,
+    the transaction rolled back, and nothing was cleaned."""
+
+    async def test_reset_still_purges_when_datahub_is_unreachable(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.api import scenarios as scenarios_module
+        from app.core.errors import DataHubUnavailableError
+
+        await _create_and_investigate(client)
+        assert (await client.get("/api/v1/incidents")).json()["total"] >= 1
+
+        async def unreachable():
+            raise DataHubUnavailableError("Cannot resolve 'datahub-gms'")
+
+        monkeypatch.setattr(scenarios_module, "get_provider", unreachable)
+
+        response = await client.post("/api/v1/demo/reset")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["rows_purged"] > 0
+        assert body["incident_memory_cleared"] is False
+        assert "datahub-gms" in body["datahub_error"]
+
+        assert (await client.get("/api/v1/incidents")).json()["total"] == 0
+        assert (await client.get("/api/v1/patterns")).json()["total"] == 0

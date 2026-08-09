@@ -18,9 +18,16 @@ call_api() {
   if [ "${FORCE_HTTP:-false}" != "true" ] \
      && docker compose -f "$COMPOSE_FILE" ps "$SERVICE" >/dev/null 2>&1; then
     docker compose -f "$COMPOSE_FILE" exec -T "$SERVICE" python -c "
-import urllib.request
+import sys, urllib.error, urllib.request
+
 request = urllib.request.Request('http://localhost:8000/api/v1$path', method='$method')
-print(urllib.request.urlopen(request).read().decode())
+try:
+    print(urllib.request.urlopen(request).read().decode())
+except urllib.error.HTTPError as error:
+    # The API answers with a structured error; a stack trace hides it.
+    body = error.read().decode(errors='replace')
+    print(f'HTTP {error.code} from $path: {body}', file=sys.stderr)
+    sys.exit(1)
 "
   else
     curl -sf -X "$method" "$API$path"

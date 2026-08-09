@@ -89,18 +89,29 @@ async def reset_demo(
             result = await session.execute(delete(table))
             purged += result.rowcount or 0
 
-    provider = await get_provider()
+    # Resetting the application's own state must not depend on DataHub being
+    # reachable. It did: an unreachable catalog raised here, the transaction
+    # rolled back, and the reset silently did nothing — exactly when someone is
+    # trying to get a broken environment back to a known state.
     memory_cleared = False
-    reset_memory = getattr(provider, "reset_memory", None)
-    if callable(reset_memory):
-        outcome = reset_memory()
-        if inspect.isawaitable(outcome):
-            await outcome
-        memory_cleared = True
+    source_mode = "UNKNOWN"
+    datahub_error: str | None = None
+    try:
+        provider = await get_provider()
+        source_mode = str(provider.source_mode)
+        reset_memory = getattr(provider, "reset_memory", None)
+        if callable(reset_memory):
+            outcome = reset_memory()
+            if inspect.isawaitable(outcome):
+                await outcome
+            memory_cleared = True
+    except Exception as exc:  # noqa: BLE001 - reported, never fatal
+        datahub_error = str(exc)[:300]
 
     return {
         "scenarios_reset": scenarios,
         "rows_purged": purged,
         "incident_memory_cleared": memory_cleared,
-        "datahub_source_mode": str(provider.source_mode),
+        "datahub_source_mode": source_mode,
+        "datahub_error": datahub_error,
     }

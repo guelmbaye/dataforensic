@@ -784,6 +784,12 @@ services:
       context: ./datahub/mcp-bridge
     container_name: dataforensic-mcp
     restart: unless-stopped
+    # env_file as well as environment: `${DATAHUB_TOKEN}` is compose
+    # interpolation, which silently yields an empty string if the variable is
+    # not where compose looks. The MCP server then starts, fails to
+    # authenticate, and the bridge answers empty — indistinguishable from a
+    # transport problem.
+    env_file: [.env]
     environment:
       DATAHUB_GMS_URL: http://datahub-gms:8080
       DATAHUB_GMS_TOKEN: ${DATAHUB_TOKEN}
@@ -1238,6 +1244,11 @@ docker compose -f docker-compose.prod.yml logs mcp | tail -40
 ```
 
 Causes, par ordre de fréquence :
+
+**Avant tout, la sonde :** `./scripts/probe-mcp.sh` affiche l'image réellement
+utilisée, le statut HTTP, le content-type, l'identifiant de session, les premiers
+octets de la réponse, et les logs du pont juste après. Les causes ci-dessous se
+distinguent toutes à partir de cette sortie.
 
 0. **Le pont tourne encore sur l'image publiée.** À vérifier en premier, parce
    que c'est invisible dans les logs de l'API :

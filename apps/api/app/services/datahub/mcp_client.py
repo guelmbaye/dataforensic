@@ -116,11 +116,14 @@ class MCPClient:
             f"{content_type or 'unknown'}, HTTP {status}). First bytes: {preview}"
         )
 
-    async def _rpc(self, method: str, params: dict[str, Any] | None = None) -> Any:
+    async def _rpc(
+        self, method: str, params: dict[str, Any] | None = None, retried: bool = False
+    ) -> Any:
         client = await self._http()
         body = {"jsonrpc": "2.0", "id": self._next_id(), "method": method}
         if params is not None:
             body["params"] = params
+        had_session = self._session_id is not None
         waiter: asyncio.Future = asyncio.get_running_loop().create_future()
         self._pending[body["id"]] = waiter
         try:
@@ -146,12 +149,18 @@ class MCPClient:
                 try:
                     payload = await asyncio.wait_for(waiter, timeout=self.timeout)
                 except TimeoutError as exc:
+                    if had_session and not retried:
+                        # Most likely a session the gateway no longer knows,
+                        # which it answers exactly like a healthy empty reply.
+                        logger.info("mcp_session_retry", extra={"method": method})
+                        await self._reset_session()
+                        return await self._rpc(method, params, retried=True)
                     raise MCPError(
-                        f"MCP {method}: the endpoint answered empty and no reply arrived "
-                        f"on the event stream within {self.timeout}s. A gateway whose "
-                        "child process died answers exactly like this — it is still "
-                        "listening, and there is nothing behind it. Check the bridge "
-                        "logs before suspecting the transport."
+                        f"MCP {method}: HTTP {response.status_code} "
+                        f"({content_type or 'no content-type'}, {len(response.content)} bytes) "
+                        f"and no reply arrived on the event stream within {self.timeout}s. "
+                        "A gateway whose child process died answers exactly like this — "
+                        "it is still listening with nothing behind it. Check the bridge logs."
                     ) from exc
         finally:
             self._pending.pop(body["id"], None)
@@ -170,6 +179,13 @@ class MCPClient:
     async def initialize(self) -> list[dict[str, Any]]:
         if self._initialized:
             return self._tools
+
+        # A handshake starts a new session by definition. Carrying an id from a
+        # previous one is how this client got stuck: the bridge was recreated,
+        # every session it knew about was gone, and each attempt kept presenting
+        # a session the gateway no longer had — answered with an empty body,
+        # forever, while a fresh probe worked first try.
+        await self._reset_session()
         await self._rpc(
             "initialize",
             {
@@ -232,6 +248,18 @@ class MCPClient:
             return json.loads(joined)
         except json.JSONDecodeError:
             return {"text": joined}
+
+    async def _reset_session(self) -> None:
+        """Forget the session and the stream bound to it."""
+        self._session_id = None
+        self._initialized = False
+        if self._stream_task and not self._stream_task.done():
+            self._stream_task.cancel()
+        self._stream_task = None
+        for waiter in self._pending.values():
+            if not waiter.done():
+                waiter.cancel()
+        self._pending.clear()
 
     async def _ensure_stream(self) -> None:
         """Open the server-to-client stream, once, lazily.

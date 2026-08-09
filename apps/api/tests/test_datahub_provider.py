@@ -173,3 +173,21 @@ class TestMcpResponseFraming:
             return await asyncio.wait_for(waiter, timeout=1)
 
         assert asyncio.run(scenario())["result"] == {"ok": 1}
+
+    def test_a_handshake_starts_a_fresh_session(self) -> None:
+        """A session id from a bridge that no longer exists is answered exactly
+        like a healthy empty reply — and would otherwise be presented forever."""
+        import asyncio
+
+        from app.services.datahub.mcp_client import MCPClient
+
+        async def scenario() -> tuple:
+            client = MCPClient("http://localhost:1/mcp", token=None, timeout=1)
+            client._session_id = "stale"
+            client._pending[1] = asyncio.get_running_loop().create_future()
+            await client._reset_session()
+            return client._session_id, dict(client._pending)
+
+        session_id, pending = asyncio.run(scenario())
+        assert session_id is None
+        assert pending == {}

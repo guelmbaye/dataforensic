@@ -105,9 +105,17 @@ def summarize_root_cause(
         verb = "failed" if (run and run.metadata.get("failed")) else "stopped refreshing on time"
         return f"{stage} {verb}, so {target} no longer reflects current source data."
     if hypothesis.pattern == "SOURCE_DATA_ANOMALY" and quality:
+        source = context.asset_name(quality.asset_urn)
+        if source == target:
+            # The anomaly was only measured on the incident asset itself, which
+            # happens when lineage is thin. "X delivered data that propagated to
+            # X" reads like a bug, so say what is actually known instead.
+            return (
+                f"Anomalous values were found directly on {target}; no upstream asset "
+                "could be identified as the source."
+            )
         return (
-            f"The source asset {context.asset_name(quality.asset_urn)} delivered anomalous data "
-            f"that propagated to {target}."
+            f"The source asset {source} delivered anomalous data that propagated to {target}."
         )
     if hypothesis.pattern == "TRANSFORMATION_LOGIC_CHANGE":
         return f"A transformation definition feeding {target} changed and altered its output."

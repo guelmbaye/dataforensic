@@ -131,6 +131,23 @@ def _field_type(raw: str):
     return SchemaFieldDataTypeClass(type=mapping[kind])
 
 
+def _training_data_aspect(datasets: list[str]) -> Any | None:
+    """`mlModelTrainingData`, if this SDK version exposes it under that name.
+
+    Documented as the direct link between a model and the data it was trained
+    on. Attempted rather than assumed: an ML model without dataset lineage is a
+    smaller loss than an emitter that aborts.
+    """
+    try:
+        from datahub.metadata.schema_classes import BaseDataClass, MLModelTrainingDataClass
+
+        return MLModelTrainingDataClass(
+            trainingData=[BaseDataClass(dataset=dataset) for dataset in datasets]
+        )
+    except Exception:  # noqa: BLE001 - optional enrichment
+        return None
+
+
 def build_mcps(graph: dict[str, Any]) -> list[Any]:
     """One flat list of aspect changes, so a dry run can simply count them."""
     from datahub.emitter.mcp import MetadataChangeProposalWrapper
@@ -140,6 +157,7 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
         DashboardInfoClass,
         DatasetLineageTypeClass,
         DatasetPropertiesClass,
+        EdgeClass,
         GlobalTagsClass,
         MLModelPropertiesClass,
         OtherSchemaClass,
@@ -155,6 +173,15 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
 
     now = AuditStampClass(time=0, actor="urn:li:corpuser:datahub")
     mcps: list[tuple[str, Any]] = []
+
+    # Consumption edges have to be known before the entity loop: a dashboard's
+    # datasets live inside `dashboardInfo`, so emitting that aspect first and the
+    # edges after would simply overwrite them.
+    consumed: dict[str, list[str]] = {}
+    for edge in graph["lineage"]:
+        downstream, upstream = edge["downstream"], edge["upstream"]
+        if ":dataset:" in upstream and ":dataset:" not in downstream:
+            consumed.setdefault(downstream, []).append(upstream)
 
     for entity in graph["entities"]:
         urn = entity["urn"]
@@ -176,11 +203,20 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
                 customProperties=properties,
             )
         elif kind == "DASHBOARD":
+            # datasetEdges is what makes a dashboard appear downstream of the
+            # data it reads. Without it the blast radius stops at the last
+            # dataset and reports zero consumers, which reads as "nothing is
+            # affected" rather than "the graph does not say".
             aspect = DashboardInfoClass(
                 title=entity.get("name", urn),
                 description=entity.get("description", ""),
                 lastModified=ChangeAuditStampsClass(created=now, lastModified=now),
                 customProperties=properties,
+                datasetEdges=[
+                    EdgeClass(destinationUrn=dataset, lastModified=now)
+                    for dataset in consumed.get(urn, [])
+                ]
+                or None,
             )
         elif kind in {"MLMODEL", "MLMODELGROUP"}:
             aspect = MLModelPropertiesClass(
@@ -226,6 +262,16 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
                     ),
                 ),
             ))
+
+        # An ML model declares the datasets it was trained on through its own
+        # aspect. The class shape is attempted defensively: if this SDK version
+        # names it differently, the model simply keeps no dataset lineage rather
+        # than taking the whole run down.
+        if kind == "MLMODEL" and consumed.get(urn):
+            training = _training_data_aspect(consumed[urn])
+            if training is not None:
+                mcps.append((f"MLMODEL training data {entity.get('name', urn)}",
+                             MetadataChangeProposalWrapper(entityUrn=urn, aspect=training)))
 
         fields = (entity.get("schema") or {}).get("fields") or []
         if is_dataset and fields:

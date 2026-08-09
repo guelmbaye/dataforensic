@@ -289,7 +289,17 @@ python3 -m venv .venv-datahub
 ```
 
 C'est additif : rien d'existant n'est touché, et les datapacks officiels peuvent
-cohabiter. Comptez environ 80 aspects émis pour les 20 entités du graphe.
+cohabiter. Comptez environ 85 aspects pour les 20 entités du graphe.
+
+Le script émet aussi la consommation aval — les dashboards déclarent les
+datasets qu'ils lisent (`datasetEdges`), les modèles ML les datasets
+d'entraînement (`mlModelTrainingData`). Sans ces arêtes, le lineage s'arrête au
+dernier dataset et le blast radius annonce « 0 consumer », ce qui se lit comme
+« rien n'est affecté » alors que la bonne lecture est « le graphe ne le dit
+pas ».
+
+Si une relance affiche des aspects refusés, ce n'est pas bloquant : le reste du
+graphe est écrit, et le script nomme ce qui a été rejeté.
 
 **b) Charger les datapacks** et réécrire les scénarios sur leurs URNs réels.
 Plus fidèle au hackathon, mais il faut relever les URNs à la main dans l'UI.
@@ -1020,7 +1030,103 @@ sudo chmod +x /usr/local/bin/deploy-dataforensic.sh
 
 ---
 
-## 12. Sauvegardes
+## 12. Remettre à plat pour tester
+
+Quatre couches d'état, indépendantes. Les confondre fait perdre du temps : la
+plupart des tests n'ont besoin que de la première.
+
+| Couche | Contenu | Remise à zéro |
+|---|---|---|
+| Application | incidents, investigations, evidence, patterns appris, mémoire, état des scénarios | `./scripts/reset-demo.sh` |
+| Volume PostgreSQL | le schéma lui-même | `docker compose -f docker-compose.prod.yml down -v` |
+| Métadonnées DataHub | tags `DataForensic:*`, liens, graphe injecté | section 12.3 |
+| DataHub complet | tout le catalogue, index compris | `datahub docker nuke` puis quickstart |
+
+### 12.1 Entre deux répétitions — le cas courant
+
+```bash
+./scripts/reset-demo.sh
+./scripts/seed-demo.sh
+```
+
+Le script efface incidents, investigations, patterns appris et mémoire locale,
+et **remet les scénarios dans leur état initial**. Sans cette dernière étape, un
+monde déjà remédié ne présente plus aucun signal et l'agent conclut,
+correctement, qu'il n'y a rien à expliquer.
+
+Il affiche ensuite la checklist : API, base, source de contexte et état de la
+poignée de main MCP. Il sort en erreur si l'environnement n'est pas prêt.
+
+> `/api/v1/demo/reset` renvoie 403 depuis Internet (section 5). Le script passe
+> donc par `docker compose exec` quand il détecte le conteneur, et retombe sur
+> HTTP en développement local. Pour forcer le second :
+> `FORCE_HTTP=true API_URL=http://localhost:8000/api/v1 ./scripts/reset-demo.sh`
+
+### 12.2 Repartir d'une base vierge
+
+Le schéma est créé au démarrage, donc supprimer le volume est sans conséquence :
+
+```bash
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml up -d
+```
+
+`down -v` supprime aussi `dataforensic-state`, où vit la mémoire du provider
+fixture. En mode `live` ce volume ne sert à rien ; en mode `fixture`, c'est là
+qu'est écrite la mémoire institutionnelle.
+
+### 12.3 Les métadonnées écrites dans DataHub
+
+**Le plus souvent, ne rien faire.** Les tags `DataForensic:<pattern>` sont la
+preuve du write-back, et une nouvelle investigation les réécrit à l'identique —
+ce sont des upserts, pas des ajouts qui s'empilent. Un tag laissé par une
+répétition ne pollue pas la suivante.
+
+Pour repartir malgré tout d'un catalogue propre, supprimez les entités de
+démonstration avec la CLI, puis réinjectez :
+
+```bash
+uvx --from acryl-datahub datahub delete --help   # vérifier les options de votre version
+python3 datahub/seed/emit_demo_graph.py
+```
+
+> Vérifiez les options avant de lancer : la surface de `datahub delete` varie
+> selon les versions, et c'est une commande destructive sur un catalogue qui
+> peut contenir autre chose que la démonstration.
+
+### 12.4 Repartir de zéro complet
+
+À réserver aux cas où DataHub lui-même est douteux — index corrompu, migration à
+moitié faite. Comptez 15 minutes.
+
+```bash
+uvx --from acryl-datahub datahub docker nuke        # conteneurs et volumes
+uvx --from acryl-datahub datahub docker quickstart  # 5 à 10 min
+uvx --from acryl-datahub datahub init --username datahub --password datahub
+# nouveau jeton dans l'UI -> .env, puis rattacher le réseau (section 3.1)
+python3 datahub/seed/emit_demo_graph.py
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml up -d
+./scripts/seed-demo.sh
+```
+
+Le nuke invalide le jeton : il faut en régénérer un et le remettre dans `.env`,
+sinon le pont MCP annoncera zéro outil et le write-back échouera — sans que rien
+d'autre n'ait l'air cassé.
+
+### 12.5 Vérifier que la remise à plat a eu lieu
+
+```bash
+curl -sS https://api.dataforensic.vylantic.com/api/v1/incidents \
+  | python3 -c "import json,sys;print('incidents:', json.load(sys.stdin)['total'])"
+curl -sS https://api.dataforensic.vylantic.com/api/v1/patterns \
+  | python3 -c "import json,sys;print('patterns :', json.load(sys.stdin)['total'])"
+```
+
+Les deux doivent renvoyer `0`. Un compteur non nul après un reset signifie que le
+script a échoué en silence — relancez-le et lisez sa sortie.
+
+## 13. Sauvegardes
 
 ### `/usr/local/bin/backup-dataforensic.sh`
 
@@ -1057,7 +1163,7 @@ sudo crontab -e
 
 ---
 
-## 13. Dépannage
+## 14. Dépannage
 
 ### L'interface se charge et reste vide
 
@@ -1278,7 +1384,7 @@ est passé par là. En mode `fixture`, c'est là que vit la mémoire écrite.
 
 ---
 
-## 14. Checklist avant de donner l'URL aux juges
+## 15. Checklist avant de donner l'URL aux juges
 
 - [ ] Les **trois** domaines requis répondent en HTTPS, certificats valides
       (`mcp.` seulement s'il a été délibérément exposé)

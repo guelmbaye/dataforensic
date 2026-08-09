@@ -230,3 +230,67 @@ class TestTransportErrorsBlockRatherThanCrash:
         assert output["status"] == str(InvestigationStatus.BLOCKED)
         assert output["root_cause"]["pattern"] is None
         assert "investigation_blocked" in event_names(output)
+
+
+class TestCatalogNoiseIsNotEvidence:
+    """Signals from the catalog's own activity must not out-vote the real cause.
+
+    Seeding a DataHub instance writes schema changes dated today. On a scenario
+    dated months earlier they arrived as a dozen SCHEMA_CHANGE signals, pushed
+    SCHEMA_DRIFT above the correct SOURCE_DATA_ANOMALY, and produced a root
+    cause naming a field that had simply been added.
+    """
+
+    def _change(self, **overrides) -> dict:
+        base = {
+            "timestamp": "2026-08-09T07:51:20Z",
+            "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,A,PROD)",
+            "type": "SCHEMA_CHANGE",
+            "operation": "ADD",
+            "summary": "A forwards & backwards compatible change due to the newly added field 'x'.",
+            "details": {"field": "x", "modification_category": None, "sem_ver_change": "MINOR"},
+        }
+        base.update(overrides)
+        return base
+
+    def test_an_added_field_is_not_a_breaking_change(self) -> None:
+        from app.agents.evidence_collector import _is_breaking_change
+
+        change = self._change()
+        assert _is_breaking_change(change, change["details"]) is False
+
+    def test_a_rename_is_breaking(self) -> None:
+        from app.agents.evidence_collector import _is_breaking_change
+
+        change = self._change(
+            summary="field renamed: discount_amount -> discount_value",
+            details={"modification_category": "RENAME"},
+        )
+        assert _is_breaking_change(change, change["details"]) is True
+
+    def test_a_removal_is_breaking(self) -> None:
+        from app.agents.evidence_collector import _is_breaking_change
+
+        change = self._change(operation="REMOVE", summary="field dropped", details={})
+        assert _is_breaking_change(change, change["details"]) is True
+
+    def test_an_additive_change_cannot_support_schema_drift(self) -> None:
+        from app.agents.hypothesis_engine import _is_relevant_schema_change
+        from app.domain.enums import EvidenceType, Relevance
+        from app.domain.evidence import EvidenceItem
+
+        additive = EvidenceItem(
+            type=EvidenceType.SCHEMA_CHANGE,
+            observation="newly added field",
+            source="datahub:timeline",
+            relevance=Relevance.LOW,
+            lineage_distance=0,
+            metadata={"breaking": False, "on_path_to_target": True, "precedes_incident": True},
+        )
+        assert _is_relevant_schema_change(additive) is False
+
+    async def test_healthcare_still_concludes_a_source_anomaly(self, session) -> None:
+        """The conclusion the live deployment got wrong."""
+        output = await run_scenario(session, "healthcare-quality")
+        assert output["root_cause"]["pattern"] == "SOURCE_DATA_ANOMALY"
+        assert output["verification"]["status"] == "PASS"

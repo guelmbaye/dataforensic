@@ -65,6 +65,20 @@ MCP_MUTATION_TOOLS: dict[str, list[str]] = {
 }
 
 
+def _field_name(element: Any) -> Any:
+    """`urn:li:schemaField:(<dataset urn>,discount_amount)` -> `discount_amount`.
+
+    The timeline identifies a changed field by its schemaField URN. Passed
+    through raw it lands in the root-cause sentence and in the trust score's
+    schema check, which then reports that it cannot find a field named after a
+    URN — true, and useless.
+    """
+    if not isinstance(element, str) or not element.startswith("urn:li:schemaField:"):
+        return element
+    inner = element[element.index("(") + 1 : element.rindex(")")] if "(" in element else element
+    return inner.rsplit(",", 1)[-1].strip() or element
+
+
 def guarded(method):
     """No exception leaves the provider.
 
@@ -513,7 +527,7 @@ class LiveDataHubProvider(DataHubProvider):
             for change in events:
                 category = str(change.get("category") or "")
                 operation = change.get("changeType") or change.get("operation")
-                element = change.get("elementId") or change.get("modifier")
+                element = _field_name(change.get("elementId") or change.get("modifier"))
                 details = change.get("changeDetails") or change.get("parameters") or {}
                 modification = change.get("modificationCategory")
                 changes.append(

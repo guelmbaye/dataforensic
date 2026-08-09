@@ -36,6 +36,28 @@ def _deviation(value: float | None, baseline: float | None) -> float | None:
     return abs(value - baseline) / abs(baseline)
 
 
+# A schema change only breaks a downstream mapping when something the consumer
+# relied on disappeared or changed shape. DataHub's timeline says which:
+# `modificationCategory` RENAME / TYPE_CHANGE, a REMOVE operation, or a MAJOR
+# semantic version bump. A newly added field is compatible by construction.
+BREAKING_MODIFICATIONS = {"RENAME", "TYPE_CHANGE"}
+BREAKING_OPERATIONS = {"REMOVE", "MODIFY"}
+
+
+def _is_breaking_change(change: dict[str, Any], details: dict[str, Any]) -> bool:
+    modification = str(details.get("modification_category") or "").upper()
+    if modification in BREAKING_MODIFICATIONS:
+        return True
+    if str(details.get("sem_ver_change") or "").upper() == "MAJOR":
+        return True
+    if str(change.get("operation") or "").upper() in BREAKING_OPERATIONS:
+        return True
+    # A rename described in prose but not categorised: the fixture graph and
+    # some connectors report it this way.
+    summary = str(change.get("summary") or "").lower()
+    return "renamed" in summary or "removed" in summary or "->" in summary
+
+
 def _signed_change(value: float | None, baseline: float | None) -> float | None:
     """Signed relative change, for display.
 
@@ -266,15 +288,29 @@ class EvidenceCollector:
                 precedes = bool(
                     moment and self.context.incident_time and moment <= self.context.incident_time
                 )
-                on_path = self.context.on_path_to_target(urn)
-                relevance = (
-                    Relevance.HIGH
-                    if precedes and on_path
-                    else Relevance.MEDIUM
-                    if precedes or on_path
-                    else Relevance.LOW
-                )
+                # A change that happened *after* the incident cannot have caused
+                # it. Seeding a catalog, or any later edit, otherwise shows up as
+                # a pile of schema changes competing with the real cause — and
+                # winning, because there are more of them.
+                if moment and self.context.incident_time and not precedes:
+                    continue
+
                 details = change.get("details", {}) or {}
+                breaking = _is_breaking_change(change, details)
+                on_path = self.context.on_path_to_target(urn)
+                if not breaking:
+                    # An additive, backwards-compatible change cannot break an
+                    # existing mapping. It stays in the record as context, but it
+                    # must not carry a causal hypothesis.
+                    relevance = Relevance.LOW
+                else:
+                    relevance = (
+                        Relevance.HIGH
+                        if precedes and on_path
+                        else Relevance.MEDIUM
+                        if precedes or on_path
+                        else Relevance.LOW
+                    )
                 items.append(
                     EvidenceItem(
                         type=EvidenceType.SCHEMA_CHANGE,
@@ -293,6 +329,7 @@ class EvidenceCollector:
                             "operation": change.get("operation"),
                             "precedes_incident": precedes,
                             "on_path_to_target": on_path,
+                            "breaking": breaking,
                             **details,
                         },
                     )

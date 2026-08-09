@@ -28,6 +28,16 @@ def _is_schema_change(e: EvidenceItem) -> bool:
 
 
 def _is_relevant_schema_change(e: EvidenceItem) -> bool:
+    """A schema change that could plausibly have broken a consumer.
+
+    `breaking` is set by the evidence collector from the timeline's modification
+    category: an added field is compatible by construction and cannot break an
+    existing mapping. Without this gate, ordinary catalog activity — a fresh
+    ingestion, a field added last week — supports schema drift, and enough of
+    those signals will out-vote the real cause.
+    """
+    if e.metadata.get("breaking") is False:
+        return False
     return _is_schema_change(e) and bool(e.metadata.get("on_path_to_target", True))
 
 

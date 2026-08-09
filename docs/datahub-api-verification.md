@@ -66,6 +66,9 @@ used by `datahub/seed/emit_demo_graph.py`:
 | Entity | Properties aspect | Required fields |
 |---|---|---|
 | dataset | `DatasetPropertiesClass` | none (name, description, customProperties optional) |
+| dataset → dataset lineage | `UpstreamLineageClass` / `UpstreamClass` | verified |
+| dashboard → dataset | `DashboardInfoClass.datasetEdges` (`EdgeClass`) | verified; `datasets` is deprecated |
+| mlModel → dataset | `mlModelTrainingData` | documented as direct model-to-training-data lineage; the exact class signature is **attempted defensively** and skipped if this SDK version differs |
 | dashboard | `DashboardInfoClass` | `title`, `description`, `lastModified` (`ChangeAuditStampsClass`) |
 | mlModel | `MLModelPropertiesClass` | none |
 
@@ -75,6 +78,27 @@ The emitter also no longer stops at the first rejection: it reports which
 aspects were refused and continues, because a half-written graph is worse than a
 failed run — the assets exist, nothing looks broken, and the investigation
 degrades silently instead.
+
+## Fourth finding: the catalog's own activity is not evidence
+
+Seeding a live DataHub writes schema changes dated *now*. Against a scenario
+dated months earlier, those arrived as a dozen `SCHEMA_CHANGE` signals, pushed
+`SCHEMA_DRIFT` above the correct `SOURCE_DATA_ANOMALY`, and produced a root
+cause naming a field that had merely been added.
+
+Two gates now stand between the timeline and a causal claim:
+
+- **A change after the incident is dropped.** It cannot have caused something
+  that already happened.
+- **A change must be able to break a consumer** to support schema drift:
+  `modificationCategory` RENAME or TYPE_CHANGE, a REMOVE operation, or a MAJOR
+  semantic version bump. An added field is compatible by construction; it stays
+  in the record as context, at LOW relevance, carrying no hypothesis.
+
+The timeline also identifies a changed field by its `schemaField` URN. Passed
+through raw it landed in the root-cause sentence and made the trust score report
+that it could not find a field named after a URN. It is now reduced to the field
+name.
 
 ## Not verified — and how the code protects itself
 

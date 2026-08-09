@@ -252,6 +252,52 @@ schéma précède l'incident — en dépend entièrement.
 
 ### 3.5 Charger le jeu de données
 
+**Les scénarios ne pointent pas sur les URNs des datapacks officiels.** Le graphe
+de démonstration reproduit leur *structure* — plateformes, types d'entités,
+formes d'URN — mais pas leurs identifiants. Un DataHub qui n'a jamais vu
+`ECOMMERCE.ANALYTICS.SALES_DAILY` produit une dégradation particulièrement
+trompeuse : l'asset « se charge », puis schéma, lineage et blast radius
+reviennent tous vides. Écrire un tag sur un URN inconnu suffit en effet à créer
+une entité sans rien dedans, que l'API retrouve ensuite.
+
+Signature dans la timeline : `context_incomplete`, et un trust score sous 40.
+
+Deux options, dans cet ordre de préférence :
+
+**a) Injecter le graphe de démonstration** — les scénarios fonctionnent alors
+tels quels, avec du vrai lineage et de vrais schémas :
+
+```bash
+export DATAHUB_GMS_URL=http://localhost:8080
+export DATAHUB_GMS_TOKEN=<votre jeton>
+python3 datahub/seed/emit_demo_graph.py --dry-run   # vérifier d'abord
+python3 datahub/seed/emit_demo_graph.py
+```
+
+Le script a besoin du SDK Python DataHub. Sur Ubuntu 24.04, `pip install` est
+refusé pour l'environnement système (PEP 668), et `pipx` ou `uv` installent la
+CLI dans un environnement isolé que Python système ne voit pas — le SDK est
+alors présent sur la machine et invisible depuis le script.
+
+Le script **détecte cet environnement et s'y ré-exécute tout seul** (pipx, uv,
+`.venv` local). S'il n'en trouve aucun :
+
+```bash
+python3 -m venv .venv-datahub
+.venv-datahub/bin/pip install "acryl-datahub>=1.0"
+.venv-datahub/bin/python datahub/seed/emit_demo_graph.py
+```
+
+C'est additif : rien d'existant n'est touché, et les datapacks officiels peuvent
+cohabiter. Comptez environ 80 aspects émis pour les 20 entités du graphe.
+
+**b) Charger les datapacks** et réécrire les scénarios sur leurs URNs réels.
+Plus fidèle au hackathon, mais il faut relever les URNs à la main dans l'UI.
+
+
+
+Pour ajouter les jeux de données officiels à côté :
+
 ```bash
 uvx --from acryl-datahub datahub datapack list
 uvx --from acryl-datahub datahub datapack load showcase-ecommerce
@@ -1097,6 +1143,101 @@ Causes, par ordre de fréquence :
 > contexte vient bien d'un DataHub réel. Ce qui se perd, c'est la démonstration
 > que le chemin MCP est emprunté — d'où l'intérêt de regarder ce champ avant la
 > vidéo plutôt qu'après.
+
+### Une investigation est bloquée, échouée, ou reste `RUNNING`
+
+Le bouton **Re-run investigation** de l'espace de travail relance depuis zéro.
+En ligne de commande :
+
+```bash
+curl -sS -X POST \
+  "https://api.dataforensic.vylantic.com/api/v1/incidents/<id>/investigate?force=true"
+```
+
+`force=true` supersède le run précédent — y compris un run marqué `RUNNING` sans
+processus derrière, ce que laisse un redémarrage de l'API en pleine
+investigation — et **remet l'état du scénario à zéro**. Sans cette remise à
+plat, la reprise trouverait un monde déjà remédié, ne verrait aucun signal, et
+conclurait correctement qu'il n'y a rien à expliquer.
+
+Les deux runs restent dans l'historique : le précédent est marqué `FAILED` avec
+la raison, jamais supprimé.
+
+### `provider: "uninitialised"` dans `/health`
+
+L'API a démarré alors que DataHub n'était pas encore joignable. Le provider est
+construit au premier besoin et **réessayé** — toutes les 15 secondes au plus —
+donc l'application se répare seule dès que la résolution fonctionne : aucun
+redémarrage n'est nécessaire.
+
+Si l'état persiste, c'est que la cause est toujours là. `/api/v1/datahub/status`
+répond **toujours 200**, même DataHub éteint, et son champ `mcp.error` porte la
+raison de la dernière tentative.
+
+> DataHub v1.7.0 met plusieurs minutes à répondre au premier démarrage : GMS
+> attend OpenSearch, Kafka et le job `system-update`. Une API démarrée en même
+> temps affichera `uninitialised` pendant ce temps-là, et c'est normal.
+
+### `Temporary failure in name resolution` pendant une investigation
+
+Le conteneur API ne résout plus le nom de DataHub. Le message ne dit pas *quel*
+nom — l'API le nomme désormais elle-même dans `blocked_reason` et dans la
+timeline.
+
+La cause la plus fréquente : **DataHub tourne dans un autre projet compose**, et
+son rattachement au réseau applicatif ne survit pas à une recréation de ses
+conteneurs (`datahub docker quickstart --stop` puis redémarrage, une mise à jour
+d'image, un `docker system prune`). L'alias disparaît avec l'attachement.
+
+```bash
+# Qui est réellement sur le réseau
+docker network inspect dataforensic-network \
+  --format '{{range .Containers}}{{.Name}} {{end}}'
+
+# Depuis l'API, le test qui compte
+docker compose -f docker-compose.prod.yml exec api \
+  python -c "import socket;print(socket.gethostbyname('datahub-gms'))"
+docker compose -f docker-compose.prod.yml exec api \
+  python -c "import socket;print(socket.gethostbyname('dataforensic-mcp'))"
+```
+
+Rattacher ce qui manque, avec l'alias :
+
+```bash
+docker network connect --alias datahub-gms \
+  dataforensic-network datahub-datahub-gms-quickstart-1
+```
+
+> Un `docker network connect` sur un conteneur déjà rattaché renvoie une erreur
+> explicite : il n'y a aucun risque à rejouer la commande pour vérifier.
+
+**Si `connect` réussit et que la résolution échoue toujours, le conteneur est
+arrêté.** C'est le piège de cette étape : Docker accepte de rattacher un
+conteneur à l'arrêt — il enregistre la configuration pour le prochain démarrage —
+mais **le DNS embarqué ne publie que les conteneurs en cours d'exécution**. La
+commande ne dit rien, et `docker network inspect` ne le liste pas davantage,
+puisqu'il n'affiche que les points de terminaison actifs.
+
+```bash
+docker ps -a --filter name=datahub --format '{{.Names}}\t{{.Status}}'
+docker inspect datahub-datahub-gms-quickstart-1 \
+  --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}'
+docker logs --tail 50 datahub-datahub-gms-quickstart-1
+free -h
+```
+
+`oom=true`, ou un `exit=137`, désigne le manque de mémoire — le mode d'échec
+numéro un d'un DataHub embarqué (section 2). Le frontend, beaucoup plus léger,
+survit et continue de répondre, ce qui donne l'impression trompeuse que DataHub
+tourne encore.
+
+Une fois GMS redémarré, l'alias posé plus tôt reprend effet sans avoir à rejouer
+le `connect` : la configuration du point de terminaison est persistée.
+
+Pour que le rattachement ne se reperde pas, le déclarer une fois pour toutes du
+côté DataHub plutôt que par commande — en ajoutant un fichier
+`docker-compose.override.yml` dans le répertoire du quickstart qui place GMS et
+le frontend sur le réseau `dataforensic-network` déclaré `external: true`.
 
 ### L'agent trouve l'asset mais aucun lineage
 

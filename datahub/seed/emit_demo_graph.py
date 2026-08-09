@@ -136,9 +136,12 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
     from datahub.emitter.mcp import MetadataChangeProposalWrapper
     from datahub.metadata.schema_classes import (
         AuditStampClass,
+        ChangeAuditStampsClass,
+        DashboardInfoClass,
         DatasetLineageTypeClass,
         DatasetPropertiesClass,
         GlobalTagsClass,
+        MLModelPropertiesClass,
         OtherSchemaClass,
         OwnerClass,
         OwnershipClass,
@@ -151,29 +154,49 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
     )
 
     now = AuditStampClass(time=0, actor="urn:li:corpuser:datahub")
-    mcps: list[Any] = []
+    mcps: list[tuple[str, Any]] = []
 
     for entity in graph["entities"]:
         urn = entity["urn"]
-        is_dataset = entity.get("type") == "DATASET"
+        kind = str(entity.get("type", "DATASET")).upper()
+        is_dataset = kind == "DATASET"
+        properties = {
+            "criticality": str(entity.get("criticality", "MEDIUM")),
+            "domain": str(entity.get("domain", "")),
+            "seeded_by": "dataforensic-ai",
+        }
 
-        mcps.append(
-            MetadataChangeProposalWrapper(
-                entityUrn=urn,
-                aspect=DatasetPropertiesClass(
-                    name=entity.get("name"),
-                    description=entity.get("description", ""),
-                    customProperties={
-                        "criticality": str(entity.get("criticality", "MEDIUM")),
-                        "domain": str(entity.get("domain", "")),
-                        "seeded_by": "dataforensic-ai",
-                    },
-                ),
+        # Each entity type has its own properties aspect. Sending
+        # `datasetProperties` to a dashboard is rejected outright:
+        #   422 Unknown aspect datasetProperties for entity dashboard
+        if is_dataset:
+            aspect = DatasetPropertiesClass(
+                name=entity.get("name"),
+                description=entity.get("description", ""),
+                customProperties=properties,
             )
-        )
+        elif kind == "DASHBOARD":
+            aspect = DashboardInfoClass(
+                title=entity.get("name", urn),
+                description=entity.get("description", ""),
+                lastModified=ChangeAuditStampsClass(created=now, lastModified=now),
+                customProperties=properties,
+            )
+        elif kind in {"MLMODEL", "MLMODELGROUP"}:
+            aspect = MLModelPropertiesClass(
+                description=entity.get("description", ""),
+                customProperties=properties,
+            )
+        else:
+            aspect = None
+
+        if aspect is not None:
+            mcps.append((f"{kind} properties {entity.get('name', urn)}",
+                         MetadataChangeProposalWrapper(entityUrn=urn, aspect=aspect)))
 
         if entity.get("owners"):
-            mcps.append(
+            mcps.append((
+                f"{kind} ownership {entity.get('name', urn)}",
                 MetadataChangeProposalWrapper(
                     entityUrn=urn,
                     aspect=OwnershipClass(
@@ -187,11 +210,12 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
                             for owner in entity["owners"]
                         ]
                     ),
-                )
-            )
+                ),
+            ))
 
         if entity.get("tags"):
-            mcps.append(
+            mcps.append((
+                f"{kind} tags {entity.get('name', urn)}",
                 MetadataChangeProposalWrapper(
                     entityUrn=urn,
                     aspect=GlobalTagsClass(
@@ -200,12 +224,13 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
                             for tag in entity["tags"]
                         ]
                     ),
-                )
-            )
+                ),
+            ))
 
         fields = (entity.get("schema") or {}).get("fields") or []
         if is_dataset and fields:
-            mcps.append(
+            mcps.append((
+                f"schema {entity.get('name', urn)}",
                 MetadataChangeProposalWrapper(
                     entityUrn=urn,
                     aspect=SchemaMetadataClass(
@@ -226,8 +251,8 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
                             for field in fields
                         ],
                     ),
-                )
-            )
+                ),
+            ))
 
     # Lineage is emitted per downstream asset: DataHub models it as the
     # downstream declaring its upstreams, so edges have to be grouped first.
@@ -241,7 +266,8 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
             # aspects; the demo's reasoning only needs dataset-to-dataset edges
             # plus the consumer entities themselves.
             continue
-        mcps.append(
+        mcps.append((
+            f"lineage into {downstream.split(',')[1] if ',' in downstream else downstream}",
             MetadataChangeProposalWrapper(
                 entityUrn=downstream,
                 aspect=UpstreamLineageClass(
@@ -251,8 +277,8 @@ def build_mcps(graph: dict[str, Any]) -> list[Any]:
                         if ":dataset:" in source
                     ]
                 ),
-            )
-        )
+            ),
+        ))
 
     return mcps
 
@@ -310,12 +336,33 @@ def main() -> int:
     emitter = DatahubRestEmitter(gms_server=args.gms, token=args.token or None)
     emitter.test_connection()
 
-    for index, mcp in enumerate(mcps, start=1):
-        emitter.emit(mcp)
+    # One rejected aspect must not abandon the graph half-written. A partially
+    # seeded DataHub is worse than a failed run: the assets exist, so nothing
+    # looks broken, and the investigation quietly degrades instead.
+    failures: list[tuple[str, str]] = []
+    for index, (label, mcp) in enumerate(mcps, start=1):
+        try:
+            emitter.emit(mcp)
+        except Exception as exc:  # noqa: BLE001 - reported, never fatal
+            failures.append((label, str(exc)[:200]))
         if index % 25 == 0:
             print(f"  emitted {index}/{len(mcps)}")
 
-    print(f"done       : {len(mcps)} aspects emitted")
+    emitted = len(mcps) - len(failures)
+    print(f"done       : {emitted}/{len(mcps)} aspects emitted")
+
+    if failures:
+        print(f"\nrefused    : {len(failures)} aspect(s)")
+        for label, error in failures[:10]:
+            print(f"  - {label}: {error}")
+        if len(failures) > 10:
+            print(f"  ... and {len(failures) - 10} more")
+        print(
+            "\nThe rest of the graph was written. Re-running this script is safe: "
+            "aspects are upserted."
+        )
+        return 1
+
     print(
         "\nVerify in the UI, then run an investigation: lineage and blast radius\n"
         "should stop being empty, and the trust score should rise accordingly."

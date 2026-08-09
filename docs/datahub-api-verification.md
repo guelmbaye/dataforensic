@@ -1,7 +1,7 @@
 # DataHub API surface — what is verified, and what is not
 
 Every DataHub-specific claim this project makes was checked against the official
-documentation on **6 August 2026** (DataHub Core **1.6.0**). This file exists so
+documentation on **6 August 2026** (DataHub Core **1.6.0**; a later deployment pulled **v1.7.0**). This file exists so
 the next person does not have to redo the audit, and so the few unverified
 corners are visible rather than buried in code.
 
@@ -30,6 +30,51 @@ corners are visible rather than buried in code.
 | `datapack` is flagged **experimental** | guide caveat | datapack CLI guide |
 | `nyc-taxi` has a planted freshness issue, `healthcare` planted quality issues | scenario design | hackathon resources page |
 | supergateway flags `--stdio`, `--outputTransport streamableHttp`, `--stateful`, `--streamableHttpPath`, `--healthEndpoint`, `--port` | MCP bridge | supergateway README |
+
+## Confirmed by a real deployment (6 August 2026)
+
+`mcp-server-datahub` **cannot be installed on a musl base**. Its dependency
+`google-re2` publishes manylinux and macOS/Windows wheels only — no musllinux —
+so pip falls back to compiling `_re2.cc` and fails on a missing C++ toolchain.
+The bridge image must be glibc-based; `datahub/mcp-bridge/Dockerfile` uses
+Debian and installs the server at build time.
+
+The failure is silent by design of the parts involved: supergateway starts,
+answers `/healthz`, and only its child process dies. `/api/v1/datahub/status`
+now reports the handshake itself (`mcp.ready`, `mcp.error`) so the state is
+readable instead of inferred from an empty list.
+
+## Second finding from the same deployment
+
+A live network error (DNS, refused connection, timeout) used to escape the
+provider as an exception and end the investigation as **FAILED** with a raw
+`ConnectError`. The intended behaviour — and the one the failure-mode tests
+covered — is **BLOCKED**, with a reason. The tests stubbed the provider to
+*return* a failed ToolResult, so the transport path was never exercised.
+
+Every public method of `LiveDataHubProvider` is now wrapped by a guard: no
+exception leaves the provider, and the message names the host that failed and
+why it usually fails here. Three tests cover it, including one that raises a
+real `httpx.ConnectError`.
+
+## Third finding: aspects are per entity type
+
+Emitting `datasetProperties` to a dashboard is rejected by GMS with
+`422 Unknown aspect datasetProperties for entity dashboard`. Verified shapes now
+used by `datahub/seed/emit_demo_graph.py`:
+
+| Entity | Properties aspect | Required fields |
+|---|---|---|
+| dataset | `DatasetPropertiesClass` | none (name, description, customProperties optional) |
+| dashboard | `DashboardInfoClass` | `title`, `description`, `lastModified` (`ChangeAuditStampsClass`) |
+| mlModel | `MLModelPropertiesClass` | none |
+
+Source: DataHub Python SDK model reference and the metadata model documentation.
+
+The emitter also no longer stops at the first rejection: it reports which
+aspects were refused and continues, because a half-written graph is worse than a
+failed run — the assets exist, nothing looks broken, and the investigation
+degrades silently instead.
 
 ## Not verified — and how the code protects itself
 

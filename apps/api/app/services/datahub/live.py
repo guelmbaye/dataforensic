@@ -662,9 +662,12 @@ class LiveDataHubProvider(DataHubProvider):
         return self._ok(
             "write_incident_memory",
             {
-                # The tag URN is the durable reference: it survives even when the
-                # link could not be attached, and it is what a later search finds.
-                "reference": link_url,
+                # The reference has to be resolvable, not merely printable. A
+                # link URL cannot be read back from DataHub, so the write-back
+                # could never be verified and every investigation reported
+                # WRITTEN_UNVERIFIED while the tag was sitting there in the UI.
+                "reference": f"{target}#dataforensic-incident-{document.get('incident_id')}",
+                "link": link_url,
                 "resource_urn": target,
                 "tag_urn": tag_urn,
                 "link_attached": "addLink" in operations,
@@ -687,11 +690,32 @@ class LiveDataHubProvider(DataHubProvider):
                 "Reference is a link URL; provide the resource URN to verify",
             )
         data = await self.gql.execute(DATASET_QUERY, {"urn": urn})
-        elements = (((data.get("dataset") or {}).get("institutionalMemory") or {}).get("elements")) or []
+        dataset = data.get("dataset") or {}
+        elements = ((dataset.get("institutionalMemory") or {}).get("elements")) or []
+        tags = [
+            (entry.get("tag") or {}).get("urn")
+            for entry in ((dataset.get("tags") or {}).get("tags") or [])
+        ]
+        pattern_tags = [tag for tag in tags if tag and "dataforensic" in tag.lower()]
+
+        # The tag is what makes the investigation discoverable, so it is what
+        # verification looks for. The institutional-memory link is reported when
+        # present but is not required: its mutation shape is the one part of the
+        # write-back that could not be confirmed against official docs.
+        if not pattern_tags:
+            return self._fail(
+                "read_incident_memory",
+                f"No DataForensic tag found on {urn} after the write-back",
+            )
         return self._ok(
             "read_incident_memory",
-            {"reference": reference, "elements": elements},
-            "datahub-graphql:institutionalMemory",
+            {
+                "reference": reference,
+                "tags": pattern_tags,
+                "elements": elements,
+                "link_attached": bool(elements),
+            },
+            "datahub-graphql:tags",
         )
 
     @guarded

@@ -385,3 +385,52 @@ class TestLearningSurvivesAWriteBackFailure:
         assert [row.write_back_status for row in rows] == ["LOCAL_ONLY"]
         assert rows[0].datahub_reference == ""
         assert "memory_write_failed" in event_names(output)
+
+
+class TestDisplayAndPrecedentHygiene:
+    """Small defects, all visible on the deployed instance."""
+
+    def test_urn_display_names_cover_every_entity_shape(self) -> None:
+        from app.core.utils import urn_name
+
+        assert (
+            urn_name("urn:li:dataset:(urn:li:dataPlatform:snowflake,A.B.SALES_DAILY,PROD)")
+            == "SALES_DAILY"
+        )
+        # These two rendered as "PROD)" and "looker,taxi_operations".
+        assert (
+            urn_name("urn:li:dataJob:(urn:li:dataFlow:(dbt,flow,PROD),orders_enriched)")
+            == "orders_enriched"
+        )
+        assert urn_name("urn:li:dashboard:(looker,taxi_operations)") == "taxi_operations"
+        assert urn_name("urn:li:corpGroup:analytics-engineering") == "analytics-engineering"
+
+    async def test_a_coincidental_precedent_is_not_offered(self, session) -> None:
+        """A 1% overlap was arriving as evidence and costing trust points."""
+        await run_scenario(session, "pipeline-freshness")
+        output = await run_scenario(session, "healthcare-quality")
+
+        historical = [e for e in output["evidence"] if e["type"] == "HISTORICAL_INCIDENT"]
+        assert historical == [], "an unrelated past incident must not become evidence"
+        assert output["root_cause"]["pattern"] == "SOURCE_DATA_ANOMALY"
+
+    def test_the_rationale_does_not_claim_more_than_the_checks_show(self) -> None:
+        from app.domain.trust import TrustCheck, TrustCheckStatus, TrustScore
+
+        partial = TrustScore(
+            checks=[
+                TrustCheck("evidence_quality", TrustCheckStatus.PASS, 30, 30, ""),
+                TrustCheck("lineage_coverage", TrustCheckStatus.PARTIAL, 8, 20, ""),
+            ]
+        )
+        assert "Every grounding check passed" not in partial.rationale()
+        assert "not complete" in partial.rationale()
+
+    async def test_the_pattern_signature_excludes_symptom_and_precedent(
+        self, session
+    ) -> None:
+        await run_scenario(session, "revenue-collapse")
+        pattern = (await PatternLibrary(session).all())[0]
+        assert "METRIC_CHANGE" not in pattern.evidence_signature
+        assert "HISTORICAL_INCIDENT" not in pattern.evidence_signature
+        assert pattern.evidence_signature, "the signature must not be empty either"

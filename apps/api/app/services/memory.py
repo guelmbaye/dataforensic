@@ -27,6 +27,12 @@ from app.services.datahub.base import DataHubProvider
 
 logger = get_logger(__name__)
 
+# Below this, a "match" is coincidence. A 1% overlap was arriving as
+# HISTORICAL_INCIDENT evidence pointing at an unrelated asset, which then failed
+# the lineage-coverage check — a spurious precedent cost 12 trust points and
+# added a line of nonsense to the evidence list.
+MIN_PRECEDENT_SIMILARITY = 0.25
+
 
 class MemoryService:
     def __init__(self, session: AsyncSession, provider: DataHubProvider) -> None:
@@ -216,7 +222,7 @@ class MemoryService:
                 if asset_urn in doc_assets:
                     similarity += 0.2
             similarity += 0.3 * jaccard(symptom_tokens, tokenize(row.symptom))
-            if similarity <= 0.0:
+            if similarity < MIN_PRECEDENT_SIMILARITY:
                 continue
             matches.append(
                 PreviousIncidentMatch(

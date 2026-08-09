@@ -69,17 +69,43 @@ def jaccard(a: set[str], b: set[str]) -> float:
 
 
 def urn_name(urn: str | None) -> str:
-    """Human readable short name for a DataHub URN."""
+    """Human readable short name for a DataHub URN.
+
+    URN shapes differ by entity, and assuming the dataset shape everywhere
+    produced names like `PROD)` for a data job and `looker,taxi_operations` for
+    a dashboard — visible in the evidence list and in the pattern library.
+
+        dataset   (urn:li:dataPlatform:snowflake,DB.SCHEMA.TABLE,PROD) -> TABLE
+        dataJob   (urn:li:dataFlow:(dbt,flow,PROD),orders_enriched)    -> orders_enriched
+        dashboard (looker,revenue_overview)                            -> revenue_overview
+        corpGroup urn:li:corpGroup:analytics-engineering               -> analytics-engineering
+    """
     if not urn:
         return ""
-    inner = urn
-    if "," in urn and urn.endswith(")"):
-        parts = urn.rsplit("(", 1)[-1].rstrip(")").split(",")
-        if len(parts) >= 2:
-            inner = parts[1]
+
+    if not urn.endswith(")"):
+        return urn.split(":")[-1].strip() or urn
+
+    inner = urn[urn.index("(") + 1 : -1] if "(" in urn else urn
+
+    # A data job nests its flow URN, and the job's own name is what follows the
+    # closing parenthesis of that nested URN.
+    if "(" in inner and ")" in inner:
+        tail = inner[inner.rindex(")") + 1 :].lstrip(",").strip()
+        if tail:
+            return tail
+
+    parts = [part.strip() for part in inner.split(",")]
+    if len(parts) >= 3:
+        # dataset: (platform, name, env)
+        candidate = parts[1]
+    elif len(parts) == 2:
+        # dashboard / chart: (tool, id)
+        candidate = parts[1]
     else:
-        inner = urn.split(":")[-1]
-    return inner.strip().split(".")[-1] or inner
+        candidate = parts[0]
+
+    return candidate.split(".")[-1].strip() or candidate
 
 
 def urn_entity_type(urn: str | None) -> str:

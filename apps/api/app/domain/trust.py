@@ -103,14 +103,31 @@ class TrustScore:
     def failed_checks(self) -> list[TrustCheck]:
         return [c for c in self.checks if c.status is TrustCheckStatus.FAIL]
 
+    @property
+    def partial_checks(self) -> list[TrustCheck]:
+        return [c for c in self.checks if c.status is TrustCheckStatus.PARTIAL]
+
     def rationale(self) -> str:
-        """One sentence a human can act on, not a restatement of the number."""
+        """One sentence a human can act on, not a restatement of the number.
+
+        Partial checks count. Saying "every grounding check passed" next to three
+        half-filled meters is the kind of contradiction that costs a reader their
+        trust in the whole panel.
+        """
         failed = self.failed_checks
-        if not failed:
+        partial = self.partial_checks
+        if not failed and not partial:
             return "Every grounding check passed: the conclusion rests on retrieved context."
+        if not failed:
+            names = ", ".join(check.label.lower() for check in partial)
+            return (
+                f"Grounding is solid but not complete ({names}). The conclusion is "
+                "supported; confirm the thin parts before acting on it."
+            )
         names = ", ".join(check.label.lower() for check in failed)
+        weak = f" {len(partial)} more are only partial." if partial else ""
         return (
-            f"Grounding is incomplete ({names}). Treat the conclusion as a lead "
+            f"Grounding is incomplete ({names}).{weak} Treat the conclusion as a lead "
             f"to confirm rather than an established fact."
         )
 

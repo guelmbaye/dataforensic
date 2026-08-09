@@ -144,11 +144,15 @@ class PatternLibrary:
         row = await self.get(pattern_key)
         now = utcnow()
 
+        # The signature describes what proves this failure mode. The reported
+        # symptom is what it explains, and a past incident is circular — neither
+        # belongs in the fingerprint used to recognise it next time.
         signature = sorted(
             {
                 str(item.get("type"))
                 for item in evidence
-                if item.get("type") and item.get("relevance") in {"HIGH", "MEDIUM"}
+                if item.get("type") not in {None, "METRIC_CHANGE", "HISTORICAL_INCIDENT"}
+                and item.get("relevance") in {"HIGH", "MEDIUM"}
             }
         )
         steps = [step.get("title", "") for step in (remediation_plan or {}).get("steps", [])]

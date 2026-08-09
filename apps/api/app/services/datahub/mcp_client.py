@@ -148,7 +148,10 @@ class MCPClient:
                 except TimeoutError as exc:
                     raise MCPError(
                         f"MCP {method}: the endpoint answered empty and no reply arrived "
-                        f"on the event stream within {self.timeout}s"
+                        f"on the event stream within {self.timeout}s. A gateway whose "
+                        "child process died answers exactly like this — it is still "
+                        "listening, and there is nothing behind it. Check the bridge "
+                        "logs before suspecting the transport."
                     ) from exc
         finally:
             self._pending.pop(body["id"], None)

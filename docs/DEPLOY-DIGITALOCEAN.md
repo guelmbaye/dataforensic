@@ -1239,6 +1239,31 @@ docker compose -f docker-compose.prod.yml logs mcp | tail -40
 
 Causes, par ordre de fréquence :
 
+0. **Le pont tourne encore sur l'image publiée.** À vérifier en premier, parce
+   que c'est invisible dans les logs de l'API :
+
+   ```bash
+   docker compose -f docker-compose.prod.yml ps
+   ```
+
+   Si la colonne IMAGE affiche `supercorp/supergateway:uvx` au lieu d'une image
+   construite localement, le service `mcp` de votre `docker-compose.prod.yml`
+   utilise encore `image:` au lieu de `build:`. Un `up -d` ne recrée pas un
+   conteneur dont la définition n'a pas changé, donc le correctif ne s'applique
+   jamais :
+
+   ```yaml
+   mcp:
+     build:
+       context: ./datahub/mcp-bridge   # et non image: supercorp/supergateway:uvx
+   ```
+
+   ```bash
+   docker compose -f docker-compose.prod.yml build mcp
+   docker compose -f docker-compose.prod.yml up -d --force-recreate mcp
+   docker compose -f docker-compose.prod.yml logs mcp | tail -20
+   ```
+
 1. **Le processus enfant est mort au démarrage.** Signature dans les logs :
 
    ```

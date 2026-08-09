@@ -1,11 +1,27 @@
 /** Presentation helpers. Nothing here decides anything — it only formats. */
 
+/**
+ * Short display name for a DataHub URN.
+ *
+ * Entity shapes differ, and assuming the dataset shape everywhere produced
+ * `PROD)` for a data job and `looker,taxi_operations` for a dashboard.
+ */
 export function assetName(urn: string | null | undefined): string {
   if (!urn) return "unknown asset";
-  const match = urn.match(/,([^,]+),[^,]*\)$/);
-  if (match) return match[1];
-  const tail = urn.split(":").pop() ?? urn;
-  return tail.replace(/[()]/g, "");
+  if (!urn.endsWith(")")) return urn.split(":").pop() ?? urn;
+
+  const open = urn.indexOf("(");
+  const inner = open >= 0 ? urn.slice(open + 1, -1) : urn;
+
+  // A data job nests its flow URN; its own name follows the nested closing ")".
+  if (inner.includes("(") && inner.includes(")")) {
+    const tail = inner.slice(inner.lastIndexOf(")") + 1).replace(/^,/, "").trim();
+    if (tail) return tail;
+  }
+
+  const parts = inner.split(",").map((part) => part.trim());
+  const candidate = parts.length >= 2 ? parts[1] : parts[0];
+  return candidate.split(".").pop() || candidate;
 }
 
 export function clockTime(iso: string | null | undefined): string {

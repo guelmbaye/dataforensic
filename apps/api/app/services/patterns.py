@@ -130,6 +130,7 @@ class PatternLibrary:
         remediation_plan: dict[str, Any] | None,
         affected_assets: list[str],
         verification_passed: bool,
+        written_to_datahub: bool = True,
     ) -> KnowledgePattern | None:
         """Fold a finished investigation into the pattern library.
 
@@ -209,6 +210,7 @@ class PatternLibrary:
                     "confidence": round(confidence, 4),
                     "trust_score": round(trust, 1),
                     "verified": verification_passed,
+                    "written_to_datahub": written_to_datahub,
                     "duration_ms": int(investigation.duration_ms or 0),
                     "tool_calls": int(investigation.tool_call_count or 0),
                     "recorded_at": now.isoformat(),

@@ -132,6 +132,28 @@ class MemoryService:
         affected = [urn for urn in document.affected_assets if urn != document.asset_urn]
         result = await self.provider.write_incident_memory(payload, affected)
         if not result.success:
+            # The organisation still learned something, even if DataHub refused
+            # the write. Keeping the record local means the next similar incident
+            # is still recognised; dropping it would make the whole learning loop
+            # depend on one token having tag-write permission, and would fail
+            # silently — the incident resolves, and the memory quietly does not
+            # exist. The status says plainly that DataHub was not enriched.
+            self.session.add(
+                MemoryReference(
+                    incident_id=incident.id,
+                    investigation_id=investigation.id,
+                    datahub_reference="",
+                    write_back_status="LOCAL_ONLY",
+                    source_mode=str(self.provider.source_mode),
+                    pattern=document.pattern,
+                    root_cause=document.root_cause,
+                    asset_urn=document.asset_urn,
+                    symptom=document.symptom,
+                    confidence=document.confidence,
+                    document=payload,
+                )
+            )
+            await self.session.flush()
             return MemoryWriteResponse(
                 status="WRITE_BACK_FAILED",
                 source_mode=str(self.provider.source_mode),

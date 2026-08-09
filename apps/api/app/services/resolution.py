@@ -353,15 +353,17 @@ class ResolutionService:
         )
         response = await self.memory.write_back(incident, investigation, document)
 
-        # The pattern library is only updated once the knowledge is durable in
-        # DataHub, so "knowledge captured" stays a single, honest claim.
-        if response.status == "WRITTEN":
-            await library.record(
-                investigation=investigation,
-                symptom=incident.title,
-                evidence=evidence,
-                remediation_plan=(action.plan if action else None),
-                affected_assets=document.affected_assets,
-                verification_passed=(verification.status if verification else "") == "PASS",
-            )
+        # The pattern is recorded whether or not DataHub accepted the write.
+        # What the organisation learned and what got persisted to the catalog are
+        # two different claims, and conflating them meant a missing tag-write
+        # permission silently erased the entire learning loop.
+        await library.record(
+            investigation=investigation,
+            symptom=incident.title,
+            evidence=evidence,
+            remediation_plan=(action.plan if action else None),
+            affected_assets=document.affected_assets,
+            verification_passed=(verification.status if verification else "") == "PASS",
+            written_to_datahub=response.status == "WRITTEN",
+        )
         return response

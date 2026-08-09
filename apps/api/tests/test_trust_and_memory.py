@@ -298,3 +298,90 @@ class TestWriteBackCarriesTheKnowledge:
         assert document["trust_decision"]
         assert document["knowledge_pattern"]["evidence_signature"]
         assert document["knowledge_pattern"]["resolution"]
+
+
+class TestLearningSurvivesAWriteBackFailure:
+    """DataHub refusing a write must not erase what the organisation learned.
+
+    Recording the pattern only on a successful write-back meant that a token
+    without tag-write permission silently disabled the entire learning loop: the
+    incident resolved, the pattern library stayed empty, and nothing said why.
+    """
+
+    async def test_the_pattern_is_recorded_even_when_datahub_refuses(
+        self, session, provider, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typing import Any
+
+        from app.services.datahub.base import ToolResult
+
+        async def refused(*args: Any, **kwargs: Any) -> ToolResult:
+            return ToolResult(
+                tool="write_incident_memory",
+                success=False,
+                data={},
+                source="datahub",
+                source_mode=provider.source_mode,
+                error="Unauthorized to modify tags",
+            )
+
+        monkeypatch.setattr(provider, "write_incident_memory", refused)
+        output = await run_scenario(session, "revenue-collapse")
+
+        assert output["verification"]["status"] == "PASS"
+        patterns = await PatternLibrary(session).all()
+        assert [row.pattern for row in patterns] == ["SCHEMA_DRIFT"]
+        assert patterns[0].occurrences == 1
+        assert patterns[0].occurrences_log[0]["written_to_datahub"] is False
+
+    async def test_the_next_incident_still_recognises_it(
+        self, session, provider, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typing import Any
+
+        from app.services.datahub.base import ToolResult
+
+        async def refused(*args: Any, **kwargs: Any) -> ToolResult:
+            return ToolResult(
+                tool="write_incident_memory",
+                success=False,
+                data={},
+                source="datahub",
+                source_mode=provider.source_mode,
+                error="Unauthorized to modify tags",
+            )
+
+        monkeypatch.setattr(provider, "write_incident_memory", refused)
+        await run_scenario(session, "revenue-collapse")
+        second = await run_scenario(session, "revenue-collapse")
+
+        assert second["learning"]["matched_pattern"] == "SCHEMA_DRIFT"
+        assert "known_pattern_detected" in event_names(second)
+
+    async def test_the_status_does_not_claim_datahub_was_enriched(
+        self, session, provider, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typing import Any
+
+        from app.models.tables import MemoryReference
+        from app.services.datahub.base import ToolResult
+
+        async def refused(*args: Any, **kwargs: Any) -> ToolResult:
+            return ToolResult(
+                tool="write_incident_memory",
+                success=False,
+                data={},
+                source="datahub",
+                source_mode=provider.source_mode,
+                error="Unauthorized to modify tags",
+            )
+
+        monkeypatch.setattr(provider, "write_incident_memory", refused)
+        output = await run_scenario(session, "revenue-collapse")
+
+        from sqlalchemy import select
+
+        rows = (await session.execute(select(MemoryReference))).scalars().all()
+        assert [row.write_back_status for row in rows] == ["LOCAL_ONLY"]
+        assert rows[0].datahub_reference == ""
+        assert "memory_write_failed" in event_names(output)

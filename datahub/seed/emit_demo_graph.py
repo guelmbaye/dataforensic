@@ -39,11 +39,59 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 GRAPH = Path(__file__).resolve().parent / "showcase-ecommerce-demo.json"
+
+# Set before re-executing, so a broken interpreter cannot loop forever.
+REEXEC_FLAG = "DATAFORENSIC_EMIT_REEXEC"
+
+
+def _interpreters_with_sdk() -> list[Path]:
+    """Interpreters that might already have the DataHub SDK.
+
+    On Debian, `pip install` is refused (PEP 668) and the usual answer — pipx or
+    uv — installs the CLI into an isolated environment. The SDK is then present
+    on the machine and invisible to system Python, which reads as "not
+    installed" while `datahub` works fine in the shell.
+    """
+    home = Path.home()
+    candidates = [
+        Path(os.environ.get("PIPX_HOME", home / ".local/share/pipx"))
+        / "venvs/acryl-datahub/bin/python",
+        home / ".local/pipx/venvs/acryl-datahub/bin/python",
+        home / ".local/share/uv/tools/acryl-datahub/bin/python",
+        Path.cwd() / ".venv/bin/python",
+        Path.cwd() / "venv/bin/python",
+    ]
+    return [path for path in candidates if path.is_file()]
+
+
+def _reexec_with_sdk() -> None:
+    """Re-run this script with an interpreter that can import the SDK."""
+    if os.environ.get(REEXEC_FLAG):
+        return
+    for interpreter in _interpreters_with_sdk():
+        probe = subprocess.run(
+            [
+                str(interpreter),
+                "-c",
+                # Probe everything this script actually imports: a partial
+                # install would otherwise pass the check and fail later with a
+                # traceback instead of the guidance below.
+                "import datahub.emitter.rest_emitter, datahub.emitter.mcp, "
+                "datahub.metadata.schema_classes",
+            ],
+            capture_output=True,
+        )
+        if probe.returncode == 0:
+            print(f"sdk        : found in {interpreter}, re-running with it")
+            os.environ[REEXEC_FLAG] = "1"
+            os.execv(str(interpreter), [str(interpreter), str(Path(__file__).resolve()), *sys.argv[1:]])
+    return
 
 TYPE_MAP = {
     "varchar": "string",
@@ -224,9 +272,19 @@ def main() -> int:
     try:
         from datahub.emitter.rest_emitter import DatahubRestEmitter
     except ImportError:
+        _reexec_with_sdk()  # does not return if a usable interpreter is found
         message = (
-            'The DataHub SDK is required to emit: pip install "acryl-datahub>=1.0"\n'
-            "It is only needed to run this script, not the application."
+            "The DataHub SDK is not importable from this interpreter "
+            f"({sys.executable}).\n\n"
+            "Debian refuses `pip install` system-wide (PEP 668), and pipx or uv\n"
+            "install the CLI into an isolated environment this script cannot see.\n"
+            "Either of these works:\n\n"
+            "  python3 -m venv .venv-datahub\n"
+            '  .venv-datahub/bin/pip install "acryl-datahub>=1.0"\n'
+            "  .venv-datahub/bin/python datahub/seed/emit_demo_graph.py\n\n"
+            "  # or, reusing an existing pipx install:\n"
+            "  ~/.local/share/pipx/venvs/acryl-datahub/bin/python \\\n"
+            "      datahub/seed/emit_demo_graph.py"
         )
         if args.dry_run:
             # Still useful without the SDK: the graph itself can be checked.

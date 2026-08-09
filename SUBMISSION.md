@@ -56,7 +56,17 @@ straight into the corresponding field.
 
 ---
 
-## 2. Project description
+## 2. Project story
+
+The Devpost "About the project" field asks for specific headings — inspiration,
+what it does, how we built it, challenges, accomplishments, what we learned,
+what's next. That text is written to those headings and ready to paste:
+[`docs/devpost-story.md`](docs/devpost-story.md).
+
+The material below predates that form and is kept as reference for the shorter
+fields (tagline, testing instructions, technologies) and for the README.
+
+## 2b. Project description — reference material
 
 **paste — Devpost "About the project"**
 
@@ -90,11 +100,17 @@ computes the blast radius from real lineage; proposes and executes a safe
 remediation in a controlled simulation; verifies the outcome; and writes the
 finished investigation back into DataHub.
 
-On the golden scenario it reaches `SCHEMA_DRIFT` at **97% confidence**, traces
+On the golden scenario it reaches `SCHEMA_DRIFT` at **92–97% confidence**, traces
 the chain from an ERP field rename to a broken mapping to NULL discounts to a
-corrupted revenue aggregate, reports **9 affected assets, 7 consumers and 3
-owning teams**, and passes **7 / 7 verification checks** before the incident is
-allowed to resolve.
+corrupted revenue aggregate, walks the downstream lineage to **7–9 affected
+assets across 3 owning teams**, and passes every verification check before the
+incident is allowed to resolve.
+
+The ranges are not hedging: the exact figures depend on what the catalog it is
+pointed at actually contains. The reference run shipped in `examples/` scores 97
+with 9 affected assets; the same investigation against a live DataHub scores 92
+with 7, because two ML models there carry no lineage yet. Both are in the repo,
+and the interface always reports which context source produced the number.
 
 ### What makes it different
 
@@ -207,7 +223,11 @@ scenario-specific code:
 | `healthcare-quality` | quality anomaly on a source asset, **healthy mapping** | `SOURCE_DATA_ANOMALY` 86% |
 
 Remove the schema-change evidence from the first scenario and `SCHEMA_DRIFT`
-collapses on its own. There is a test for that too.
+collapses on its own. There is a test for that too — and one named after a real
+failure: seeding a live catalog writes schema changes dated today, which for a
+while out-voted the correct conclusion on the healthcare scenario. Changes that
+post-date the incident, and additive changes that cannot break a consumer, are
+now excluded from causal reasoning.
 
 ### Technologies
 
@@ -243,9 +263,35 @@ validated without a DataHub instance.
 repository under Apache 2.0 and is ready to be adapted to the upstream skills
 repository format.
 
+Two smaller artefacts came out of running this against a real instance and may
+be more immediately useful to the community than the Skill:
+`datahub/mcp-bridge/`, which makes the stdio MCP server reachable over HTTP on
+DataHub Core, and `docs/datahub-api-verification.md`, which records every
+DataHub API claim this project makes with its source — including the ones that
+turned out to be wrong. Neither has been submitted upstream, and neither is
+claimed as a contribution.
+
+### Running it against your own DataHub
+
+The scenarios reference URNs shaped like the official datapacks but not
+identical to them, so a DataHub that has never seen them answers with empty
+entities — the investigation still runs on behavioural signals, but lineage and
+blast radius come back empty and the trust score says so. One command fixes it:
+
+```bash
+python3 datahub/seed/emit_demo_graph.py      # --dry-run first if you like
+```
+
+The MCP server ships as a stdio process, so `datahub/mcp-bridge/` builds a small
+image that exposes it over Streamable HTTP. Two findings from getting that
+working are written down in `docs/datahub-api-verification.md`: the official
+`mcp-server-datahub` cannot install on a musl base (its `google-re2` dependency
+publishes manylinux wheels only), and a gateway answering an unknown session is
+indistinguishable from a healthy empty reply.
+
 ### Testing
 
-116 automated tests: state-machine invariants, the confidence formula, trust
+147 automated tests: state-machine invariants, the confidence formula, trust
 score independence, blast-radius derivation, the DataHub provider contract, all
 three scenarios end to end, the HTTP golden path with SSE resume, and the
 failure modes — DataHub unavailable → `BLOCKED` with no invented cause;
@@ -268,8 +314,8 @@ each one to something a judge can verify without taking our word for it.
 
 | Criterion | Where to look |
 |---|---|
-| **Use of DataHub** | Seven context dimensions read per investigation, plus a validated write-back that creates a pattern tag, applies it to affected assets and adds an institutional-memory link, then reads it back to confirm. `examples/memory.json` shows the document. |
-| **Technical execution** | 116 tests, including the failure modes. `examples/` contains real artefacts from an actual run, not hand-written samples. The whole loop runs from a clean clone with two commands. |
+| **Use of DataHub** | Seven context dimensions read per investigation, plus a validated write-back that creates a pattern tag, applies it to the affected assets and reads it back to confirm — visible in the DataHub UI, not just claimed. `examples/memory.json` shows the document. |
+| **Technical execution** | 147 tests, including the failure modes. `examples/` contains real artefacts from an actual run, not hand-written samples. The whole loop runs from a clean clone with two commands. |
 | **Originality** | The pattern library and the trust score. Neither is a DataHub feature rebuilt — both compose on top of the context graph and give something back to it. |
 | **Real-world usefulness** | Incident investigation is a daily cost for data platform teams, and the reusable half of it — the reconstruction — is exactly what gets repeated. |
 | **Submission quality** | README, `docs/architecture.md`, `docs/demo.md`, `docs/DEPLOY-DIGITALOCEAN.md`, `examples/`, and a video that shows the product, not slides. |
@@ -297,6 +343,14 @@ each one to something a judge can verify without taking our word for it.
 - [ ] `/api/v1/health` returns `status: ok`
 - [ ] A full investigation has been run **on the deployed instance**, not only
       locally
+- [ ] `python3 datahub/seed/emit_demo_graph.py` has been run, so lineage and
+      blast radius are not empty
+- [ ] `PUBLIC_APP_URL` points at the public domain — the link written into
+      DataHub has to be clickable from someone else's browser
+- [ ] `/api/v1/datahub/status` shows `mcp.ready: true` with a tool list
+- [ ] The write-back status reads `VERIFIED`, not `WRITTEN UNVERIFIED`
+- [ ] `datahub.<domain>` shows the `DataForensic:<pattern>` tag on the affected
+      assets — the fastest proof of the write-back
 - [ ] `/api/v1/patterns` already contains a verified pattern, so a judge's
       second run demonstrates the learning loop immediately
 - [ ] The context-source badge matches what the description claims
@@ -313,6 +367,8 @@ each one to something a judge can verify without taking our word for it.
 - [ ] Audio intelligible, English
 - [ ] DataHub usage visible on screen
 - [ ] The second investigation is in the video — it is the differentiator
+- [ ] The DataHub UI appears, showing the tag the agent wrote
+- [ ] `/patterns` is empty before recording, so the library visibly grows
 
 ### Devpost form
 
